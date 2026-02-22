@@ -62,10 +62,10 @@ make smoke-serve SERVE_BASE_URL=http://<host>:18000
 
 ## CI Smoke Check
 
-`ci.yml` can run the same serving smoke check automatically when these repository secrets are set:
-
-- `FORGE_SERVE_BASE_URL` (required)
-- `FORGE_SERVE_EXPECT_MODEL` (optional)
+- `ci.yml` includes an optional smoke step and skips on GitHub-hosted runners.
+- `eval-gate.yml` (self-hosted GPU runner) can execute smoke checks with `workflow_dispatch` inputs:
+  - `serve_base_url` (optional, enables smoke check when set)
+  - `serve_expected_model` (optional)
 
 ## Docker
 
