@@ -118,6 +118,7 @@ DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD='***' \
 
 bash scripts/deploy_vllm.sh status
 bash scripts/deploy_vllm.sh logs
+bash scripts/deploy_vllm.sh set-active <model_name_under_~/llm-forge/models>
 
 # Start service process directly on a remote host
 uv run python scripts/run_serve.py --config configs/serving/vllm_dgx.yaml

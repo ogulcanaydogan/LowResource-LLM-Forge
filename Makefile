@@ -1,4 +1,4 @@
-.PHONY: dev test lint typecheck train eval serve smoke-serve download-data
+.PHONY: dev test lint typecheck train eval serve smoke-serve download-data ops-dashboard
 
 TRAIN_CONFIG ?= configs/models/turkcell_7b.yaml
 SERVE_CONFIG ?= configs/serving/vllm_dgx.yaml
@@ -42,3 +42,6 @@ smoke-serve:
 
 download-data:
 	uv run python scripts/download_data.py --config $(DATA_CONFIG)
+
+ops-dashboard:
+	bash scripts/runtime_dashboard.sh
