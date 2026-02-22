@@ -64,8 +64,8 @@ def _get_predictor_class() -> type:
                 skip_special_tokens=True,
             )
             if isinstance(decoded, list):
-                decoded = " ".join(decoded)
-            return decoded.strip()
+                return " ".join(str(part) for part in decoded).strip()
+            return str(decoded).strip()
 
     return Predictor
 
