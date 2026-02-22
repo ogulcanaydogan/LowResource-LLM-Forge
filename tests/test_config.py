@@ -13,6 +13,7 @@ from forge.utils.config import (
     TrainingParams,
     _deep_merge,
     load_data_config,
+    load_serving_config,
     load_training_config,
     load_yaml_config,
 )
@@ -137,3 +138,22 @@ def test_serving_config_defaults() -> None:
     assert cfg.dtype == "float16"
     assert cfg.gpu_memory_utilization == 0.90
     assert cfg.trust_remote_code is False
+    assert cfg.enforce_eager is False
+
+
+def test_load_serving_config_enforce_eager(tmp_path: Path) -> None:
+    config_file = tmp_path / "serving.yaml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "model_path": "/tmp/model",
+                "port": 18000,
+                "enforce_eager": True,
+            }
+        )
+    )
+
+    cfg = load_serving_config(config_file)
+    assert cfg.model_path == "/tmp/model"
+    assert cfg.port == 18000
+    assert cfg.enforce_eager is True

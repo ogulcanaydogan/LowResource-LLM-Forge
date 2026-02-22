@@ -109,8 +109,8 @@ Turkish MMLU is optional and requires separate install of `lm-evaluation-harness
 **vLLM (remote host, user-level systemd):**
 
 ```bash
-# Key-based SSH host (default: spark)
-bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+# Spark (GB10) profile
+bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_spark.yaml
 
 # Password SSH host example (VM330)
 DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD='***' \
@@ -127,6 +127,7 @@ make smoke-serve SERVE_BASE_URL=http://10.34.9.233:18000
 ```
 
 First startup may take ~30-90 seconds due model load and graph warmup. Wait for `/health` to return `200`.
+Spark profile enables eager mode to avoid Triton/PTX compile issues on GB10 GPUs.
 
 **Docker:**
 

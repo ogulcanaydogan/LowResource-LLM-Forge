@@ -1,4 +1,4 @@
-# vLLM serving configuration for DGX Spark
+# vLLM serving configuration for Spark (GB10)
 
 model_path: "/home/weezboo/llm-forge/model-active"
 host: "0.0.0.0"
@@ -9,6 +9,6 @@ max_model_len: 4096
 dtype: "float16"
 enable_prefix_caching: true
 trust_remote_code: false
-enforce_eager: false
-python_bin: "/home/weezboo/LowResource-LLM-Forge/.venv/bin/python"
+enforce_eager: true
+python_bin: "/usr/bin/env python"
 max_num_seqs: 64

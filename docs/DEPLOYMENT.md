@@ -11,10 +11,10 @@
 ### Deploy
 
 ```bash
-# Default target (spark via SSH config)
-bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+# Spark (GB10)
+bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_spark.yaml
 
-# Override target host/user
+# Override target host/user (VM330 V100 profile)
 DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo bash scripts/deploy_vllm.sh deploy \
   artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
 
@@ -29,6 +29,8 @@ This will:
 3. Install/update `~/.config/systemd/user/forge-vllm.service`
 4. Reload systemd user daemon
 5. Enable and restart `forge-vllm.service`
+
+`configs/serving/vllm_spark.yaml` sets `enforce_eager: true` to avoid Triton/PTX compile failures on GB10 GPUs.
 
 ### Service Management
 

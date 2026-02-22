@@ -40,6 +40,8 @@ class VLLMServer:
             cmd.append("--enable-prefix-caching")
         if self.config.trust_remote_code:
             cmd.append("--trust-remote-code")
+        if self.config.enforce_eager:
+            cmd.append("--enforce-eager")
 
         logger.info("starting_vllm", model=self.config.model_path, port=self.config.port)
         self._process = subprocess.Popen(cmd)
