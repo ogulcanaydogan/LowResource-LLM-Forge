@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       model_path:
-        description: "Path to model on HuggingFace Hub"
+        description: "Path to model (HF repo or local path on runner)"
         required: true
       benchmarks:
         description: "Comma-separated benchmarks (mmlu_tr,perplexity,generation)"
@@ -18,6 +18,8 @@ on:
         description: "Optional expected model id in /v1/models response"
         required: false
         default: ""
+  schedule:
+    - cron: "0 6 * * 1"
 
 jobs:
   evaluate:
@@ -35,20 +37,57 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra eval
 
+      - name: Resolve run parameters
+        id: params
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            model_path="${{ github.event.inputs.model_path }}"
+            benchmarks="${{ github.event.inputs.benchmarks }}"
+            serve_base_url="${{ github.event.inputs.serve_base_url }}"
+            serve_expected_model="${{ github.event.inputs.serve_expected_model }}"
+          else
+            model_path="/home/weezboo/llm-forge/model-active"
+            benchmarks="perplexity,generation"
+            serve_base_url="http://127.0.0.1:18000"
+            serve_expected_model="/home/weezboo/llm-forge/model-active"
+          fi
+
+          echo "model_path=${model_path}" >> "${GITHUB_OUTPUT}"
+          echo "benchmarks=${benchmarks}" >> "${GITHUB_OUTPUT}"
+          echo "serve_base_url=${serve_base_url}" >> "${GITHUB_OUTPUT}"
+          echo "serve_expected_model=${serve_expected_model}" >> "${GITHUB_OUTPUT}"
+
       - name: Serving smoke check
-        if: ${{ github.event.inputs.serve_base_url != '' }}
+        if: ${{ steps.params.outputs.serve_base_url != '' }}
         env:
-          FORGE_SERVE_BASE_URL: ${{ github.event.inputs.serve_base_url }}
-          FORGE_SERVE_EXPECT_MODEL: ${{ github.event.inputs.serve_expected_model }}
+          FORGE_SERVE_BASE_URL: ${{ steps.params.outputs.serve_base_url }}
+          FORGE_SERVE_EXPECT_MODEL: ${{ steps.params.outputs.serve_expected_model }}
         run: uv run python scripts/smoke_serve.py
 
       - name: Run evaluation
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        shell: bash
         run: |
-          uv run python scripts/run_eval.py \
-            --model ${{ github.event.inputs.model_path }} \
-            --output-dir artifacts/eval/
+          IFS=',' read -ra BENCHMARKS <<< "${{ steps.params.outputs.benchmarks }}"
+          ran=0
+
+          for benchmark in "${BENCHMARKS[@]}"; do
+            benchmark="$(echo "${benchmark}" | xargs)"
+            [[ -z "${benchmark}" ]] && continue
+            ran=1
+            uv run python scripts/run_eval.py \
+              --model "${{ steps.params.outputs.model_path }}" \
+              --benchmark "${benchmark}" \
+              --output-dir "artifacts/eval/${benchmark}"
+          done
+
+          if [[ "${ran}" -eq 0 ]]; then
+            uv run python scripts/run_eval.py \
+              --model "${{ steps.params.outputs.model_path }}" \
+              --output-dir artifacts/eval/
+          fi
 
       - name: Upload results
         uses: actions/upload-artifact@v6
