@@ -9,6 +9,7 @@ max_model_len: 4096
 dtype: "float16"
 enable_prefix_caching: true
 trust_remote_code: false
-enforce_eager: true
+enforce_eager: false
 python_bin: "/usr/bin/env python"
+triton_ptxas_path: "/usr/local/cuda/bin/ptxas"
 max_num_seqs: 64

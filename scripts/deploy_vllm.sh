@@ -128,6 +128,7 @@ write_service_file() {
     local trust_remote_code="$8"
     local enforce_eager="$9"
     local python_bin="${10}"
+    local triton_ptxas_path="${11:-}"
 
     local prefix_flag=""
     if [ "${enable_prefix_caching}" = "true" ]; then
@@ -144,6 +145,11 @@ write_service_file() {
         enforce_eager_flag="--enforce-eager"
     fi
 
+    local triton_env_line=""
+    if [ -n "${triton_ptxas_path}" ]; then
+        triton_env_line="Environment=TRITON_PTXAS_PATH=${triton_ptxas_path}"
+    fi
+
     local tmp_service
     tmp_service="$(mktemp)"
     cat > "${tmp_service}" <<EOF
@@ -154,6 +160,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${DEPLOY_DIR}
+${triton_env_line}
 ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_ACTIVE_LINK} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag} ${enforce_eager_flag}
 Restart=on-failure
 RestartSec=5
@@ -207,6 +214,8 @@ deploy() {
     enforce_eager="$(read_yaml_value "enforce_eager" "false" "${config}")"
     local python_bin
     python_bin="$(read_yaml_value "python_bin" "${REMOTE_PYTHON_DEFAULT}" "${config}")"
+    local triton_ptxas_path
+    triton_ptxas_path="$(read_yaml_value "triton_ptxas_path" "" "${config}")"
 
     echo "=== Deploying ${SERVICE_NAME} to ${SPARK_USER}@${SPARK_HOST} ==="
     echo "Model dir: ${model_dir}"
@@ -222,7 +231,7 @@ deploy() {
     remote_rsync "${model_dir}/" "${SPARK_USER}@${SPARK_HOST}:${remote_model_dir}/"
 
     echo "--- Updating active model symlink ---"
-    remote_exec "ln -sfn ${remote_model_dir} ${REMOTE_MODEL_ACTIVE_LINK} && readlink -f ${REMOTE_MODEL_ACTIVE_LINK}"
+    remote_exec "ln -sfn \"${remote_model_dir}\" \"${REMOTE_MODEL_ACTIVE_LINK}\" && readlink -f \"${REMOTE_MODEL_ACTIVE_LINK}\""
 
     echo "--- Uploading config ---"
     remote_scp "${config}" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_CONFIG_PATH}"
@@ -238,7 +247,8 @@ deploy() {
         "${enable_prefix_caching}" \
         "${trust_remote_code}" \
         "${enforce_eager}" \
-        "${python_bin}"
+        "${python_bin}" \
+        "${triton_ptxas_path}"
 
     echo "--- Reloading and starting service ---"
     systemctl_user daemon-reload
@@ -269,8 +279,11 @@ set_active() {
     echo "=== Switching active model on ${SPARK_USER}@${SPARK_HOST} ==="
     echo "Target: ${target_path}"
 
-    remote_exec "if [ ! -d ${target_path} ]; then echo 'Model path not found: ${target_path}' >&2; exit 1; fi"
-    remote_exec "ln -sfn ${target_path} ${REMOTE_MODEL_ACTIVE_LINK} && readlink -f ${REMOTE_MODEL_ACTIVE_LINK}"
+    remote_exec "if [ ! -d \"${target_path}\" ]; then echo 'Model path not found: ${target_path}' >&2; exit 1; fi"
+    remote_exec "if [ ! -f \"${target_path}/config.json\" ]; then echo 'Missing config.json in model path: ${target_path}' >&2; exit 1; fi"
+    remote_exec "if [ ! -f \"${target_path}/tokenizer.json\" ] && [ ! -f \"${target_path}/tokenizer.model\" ]; then echo 'Missing tokenizer.json or tokenizer.model in model path: ${target_path}' >&2; exit 1; fi"
+    remote_exec "set -- \"${target_path}\"/model*.safetensors; if [ ! -e \"\$1\" ]; then echo 'Missing model*.safetensors in model path: ${target_path}' >&2; exit 1; fi"
+    remote_exec "ln -sfn \"${target_path}\" \"${REMOTE_MODEL_ACTIVE_LINK}\" && readlink -f \"${REMOTE_MODEL_ACTIVE_LINK}\""
 
     echo "--- Restarting service ---"
     systemctl_user restart "${SERVICE_NAME}.service"
