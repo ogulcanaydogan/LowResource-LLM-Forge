@@ -51,10 +51,21 @@ journalctl --user -u forge-vllm
 ```bash
 # Warmup can take ~30-90s on first start.
 curl http://<host>:18000/health
+curl http://<host>:18000/v1/models
 curl http://<host>:18000/v1/completions \
     -H "Content-Type: application/json" \
     -d '{"model": "model", "prompt": "Merhaba, nasılsın?", "max_tokens": 100}'
+
+# Project smoke check helper
+make smoke-serve SERVE_BASE_URL=http://<host>:18000
 ```
+
+## CI Smoke Check
+
+`ci.yml` can run the same serving smoke check automatically when these repository secrets are set:
+
+- `FORGE_SERVE_BASE_URL` (required)
+- `FORGE_SERVE_EXPECT_MODEL` (optional)
 
 ## Docker
 

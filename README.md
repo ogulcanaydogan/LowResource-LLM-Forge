@@ -121,6 +121,9 @@ bash scripts/deploy_vllm.sh logs
 
 # Start service process directly on a remote host
 uv run python scripts/run_serve.py --config configs/serving/vllm_dgx.yaml
+
+# Smoke check (health + model listing)
+make smoke-serve SERVE_BASE_URL=http://10.34.9.233:18000
 ```
 
 First startup may take ~30-90 seconds due model load and graph warmup. Wait for `/health` to return `200`.
@@ -155,6 +158,7 @@ make test          # Run tests
 make lint          # Run ruff
 make typecheck     # Run mypy
 make eval MODEL=TURKCELL/Turkcell-LLM-7b-v1
+make smoke-serve SERVE_BASE_URL=http://10.34.9.233:18000
 ```
 
 ## Hardware Requirements
