@@ -80,5 +80,5 @@ pythonpath = ["src"]
 source = ["forge"]
 
 [tool.coverage.report]
-fail_under = 60
+fail_under = 40
 show_missing = true

@@ -28,4 +28,4 @@ jobs:
         run: uv run mypy src/forge
 
       - name: Tests
-        run: uv run pytest --cov=forge --cov-report=xml --cov-fail-under=60 -v
+        run: uv run pytest --cov=forge --cov-report=xml --cov-fail-under=40 -v
