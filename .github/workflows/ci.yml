@@ -31,8 +31,12 @@ jobs:
         run: uv run pytest --cov=forge --cov-report=xml --cov-fail-under=40 -v
 
       - name: Serving smoke check
-        if: ${{ secrets.FORGE_SERVE_BASE_URL != '' }}
         env:
           FORGE_SERVE_BASE_URL: ${{ secrets.FORGE_SERVE_BASE_URL }}
           FORGE_SERVE_EXPECT_MODEL: ${{ secrets.FORGE_SERVE_EXPECT_MODEL }}
-        run: uv run python scripts/smoke_serve.py
+        run: |
+          if [ -z "${FORGE_SERVE_BASE_URL}" ]; then
+            echo "FORGE_SERVE_BASE_URL secret not set; skipping serving smoke check."
+            exit 0
+          fi
+          uv run python scripts/smoke_serve.py
