@@ -22,6 +22,7 @@ usage() {
     cat <<'EOF'
 Usage:
   bash scripts/deploy_vllm.sh deploy [MODEL_DIR] [CONFIG]
+  bash scripts/deploy_vllm.sh set-active <MODEL_NAME_OR_PATH>
   bash scripts/deploy_vllm.sh start
   bash scripts/deploy_vllm.sh stop
   bash scripts/deploy_vllm.sh restart
@@ -33,6 +34,8 @@ Examples:
   DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD=... bash scripts/deploy_vllm.sh deploy
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_spark.yaml
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+  bash scripts/deploy_vllm.sh set-active model-active
+  bash scripts/deploy_vllm.sh set-active /home/weezboo/llm-forge/models/turkcell-7b-recovery-b-20260222-193209
   bash scripts/deploy_vllm.sh status
 EOF
 }
@@ -249,6 +252,31 @@ deploy() {
     echo "Logs: bash scripts/deploy_vllm.sh logs"
 }
 
+set_active() {
+    local model_ref="${1:-}"
+    if [ -z "${model_ref}" ]; then
+        echo "Usage: bash scripts/deploy_vllm.sh set-active <MODEL_NAME_OR_PATH>" >&2
+        exit 1
+    fi
+
+    local target_path
+    if [[ "${model_ref}" = /* ]]; then
+        target_path="${model_ref}"
+    else
+        target_path="${REMOTE_MODELS_DIR}/${model_ref}"
+    fi
+
+    echo "=== Switching active model on ${SPARK_USER}@${SPARK_HOST} ==="
+    echo "Target: ${target_path}"
+
+    remote_exec "if [ ! -d ${target_path} ]; then echo 'Model path not found: ${target_path}' >&2; exit 1; fi"
+    remote_exec "ln -sfn ${target_path} ${REMOTE_MODEL_ACTIVE_LINK} && readlink -f ${REMOTE_MODEL_ACTIVE_LINK}"
+
+    echo "--- Restarting service ---"
+    systemctl_user restart "${SERVICE_NAME}.service"
+    systemctl_user --no-pager --lines=25 status "${SERVICE_NAME}.service"
+}
+
 start() {
     systemctl_user start "${SERVICE_NAME}.service"
     systemctl_user --no-pager --lines=25 status "${SERVICE_NAME}.service"
@@ -290,6 +318,7 @@ main() {
 
     case "${action}" in
         deploy) deploy "${1:-${DEFAULT_MODEL_DIR}}" "${2:-${DEFAULT_CONFIG}}" ;;
+        set-active) set_active "${1:-}" ;;
         start) start ;;
         stop) stop ;;
         restart) restart ;;

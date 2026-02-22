@@ -41,6 +41,7 @@ bash scripts/deploy_vllm.sh start
 bash scripts/deploy_vllm.sh stop
 bash scripts/deploy_vllm.sh restart
 bash scripts/deploy_vllm.sh logs
+bash scripts/deploy_vllm.sh set-active <model_name_under_~/llm-forge/models>
 ```
 
 Logs are read from:
