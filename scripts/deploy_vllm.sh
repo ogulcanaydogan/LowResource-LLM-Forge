@@ -15,7 +15,7 @@ REMOTE_MODEL_DIR="${DEPLOY_DIR}/model"
 REMOTE_CONFIG_PATH="${DEPLOY_DIR}/configs/vllm.yaml"
 REMOTE_PYTHON_DEFAULT="/home/${SPARK_USER}/LowResource-LLM-Forge/.venv/bin/python"
 DEFAULT_MODEL_DIR="artifacts/merged/turkcell-7b-turkish-v1"
-DEFAULT_CONFIG="configs/serving/vllm_dgx.yaml"
+DEFAULT_CONFIG="configs/serving/vllm_spark.yaml"
 
 usage() {
     cat <<'EOF'
@@ -30,6 +30,7 @@ Usage:
 Examples:
   DEPLOY_HOST=spark bash scripts/deploy_vllm.sh deploy
   DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD=... bash scripts/deploy_vllm.sh deploy
+  bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_spark.yaml
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
   bash scripts/deploy_vllm.sh status
 EOF
@@ -121,7 +122,8 @@ write_service_file() {
     local dtype="$6"
     local enable_prefix_caching="$7"
     local trust_remote_code="$8"
-    local python_bin="$9"
+    local enforce_eager="$9"
+    local python_bin="${10}"
 
     local prefix_flag=""
     if [ "${enable_prefix_caching}" = "true" ]; then
@@ -131,6 +133,11 @@ write_service_file() {
     local trust_remote_code_flag=""
     if [ "${trust_remote_code}" = "true" ]; then
         trust_remote_code_flag="--trust-remote-code"
+    fi
+
+    local enforce_eager_flag=""
+    if [ "${enforce_eager}" = "true" ]; then
+        enforce_eager_flag="--enforce-eager"
     fi
 
     local tmp_service
@@ -143,7 +150,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${DEPLOY_DIR}
-ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_DIR} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag}
+ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_DIR} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag} ${enforce_eager_flag}
 Restart=on-failure
 RestartSec=5
 
@@ -184,6 +191,8 @@ deploy() {
     enable_prefix_caching="$(read_yaml_value "enable_prefix_caching" "true" "${config}")"
     local trust_remote_code
     trust_remote_code="$(read_yaml_value "trust_remote_code" "false" "${config}")"
+    local enforce_eager
+    enforce_eager="$(read_yaml_value "enforce_eager" "false" "${config}")"
     local python_bin
     python_bin="$(read_yaml_value "python_bin" "${REMOTE_PYTHON_DEFAULT}" "${config}")"
 
@@ -211,6 +220,7 @@ deploy() {
         "${dtype}" \
         "${enable_prefix_caching}" \
         "${trust_remote_code}" \
+        "${enforce_eager}" \
         "${python_bin}"
 
     echo "--- Reloading and starting service ---"
