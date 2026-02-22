@@ -1,0 +1,65 @@
+name: vm330-ssh-bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_key:
+        description: "SSH public key to add (single line, ssh-ed25519/ssh-rsa)"
+        required: true
+        type: string
+      target_user:
+        description: "Linux user to update"
+        required: true
+        default: "weezboo"
+        type: string
+
+jobs:
+  install-key:
+    runs-on: [self-hosted, Linux, X64, gpu, vm330]
+    timeout-minutes: 5
+    steps:
+      - name: Validate key format
+        env:
+          PUBLIC_KEY: ${{ github.event.inputs.public_key }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$PUBLIC_KEY" =~ ^ssh-(ed25519|rsa)[[:space:]]+[A-Za-z0-9+/=]+([[:space:]].*)?$ ]]; then
+            echo "Invalid SSH public key format"
+            exit 1
+          fi
+
+      - name: Install key into authorized_keys
+        env:
+          PUBLIC_KEY: ${{ github.event.inputs.public_key }}
+          TARGET_USER: ${{ github.event.inputs.target_user }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TARGET_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+            echo "Invalid target user: $TARGET_USER"
+            exit 1
+          fi
+
+          HOME_DIR="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+          if [[ -z "$HOME_DIR" ]]; then
+            echo "User not found: $TARGET_USER"
+            exit 1
+          fi
+
+          SSH_DIR="$HOME_DIR/.ssh"
+          AUTH_KEYS="$SSH_DIR/authorized_keys"
+
+          mkdir -p "$SSH_DIR"
+          chmod 700 "$SSH_DIR"
+          touch "$AUTH_KEYS"
+          chmod 600 "$AUTH_KEYS"
+
+          if grep -Fxq "$PUBLIC_KEY" "$AUTH_KEYS"; then
+            echo "Key already present for $TARGET_USER"
+          else
+            printf '%s\n' "$PUBLIC_KEY" >> "$AUTH_KEYS"
+            echo "Key added for $TARGET_USER"
+          fi
+
+      - name: Summary
+        run: |
+          echo "VM330 SSH bootstrap complete"
