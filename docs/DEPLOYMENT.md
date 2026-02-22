@@ -25,10 +25,11 @@ DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD='***' bash scripts/depl
 
 This will:
 1. Create deployment directory on remote host
-2. Sync model weights via rsync
-3. Install/update `~/.config/systemd/user/forge-vllm.service`
-4. Reload systemd user daemon
-5. Enable and restart `forge-vllm.service`
+2. Sync model weights to `~/llm-forge/models/<model_name>/` via rsync
+3. Update `~/llm-forge/model-active` symlink to the synced model
+4. Install/update `~/.config/systemd/user/forge-vllm.service` (always points to `model-active`)
+5. Reload systemd user daemon
+6. Enable and restart `forge-vllm.service`
 
 `configs/serving/vllm_spark.yaml` sets `enforce_eager: true` to avoid Triton/PTX compile failures on GB10 GPUs.
 

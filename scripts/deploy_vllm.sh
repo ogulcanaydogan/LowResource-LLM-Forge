@@ -11,7 +11,8 @@ SSH_PASSWORD="${SSH_PASSWORD:-}"
 DEPLOY_DIR="/home/${SPARK_USER}/llm-forge"
 SERVICE_NAME="forge-vllm"
 SYSTEMD_USER_DIR="/home/${SPARK_USER}/.config/systemd/user"
-REMOTE_MODEL_DIR="${DEPLOY_DIR}/model"
+REMOTE_MODELS_DIR="${DEPLOY_DIR}/models"
+REMOTE_MODEL_ACTIVE_LINK="${DEPLOY_DIR}/model-active"
 REMOTE_CONFIG_PATH="${DEPLOY_DIR}/configs/vllm.yaml"
 REMOTE_PYTHON_DEFAULT="/home/${SPARK_USER}/LowResource-LLM-Forge/.venv/bin/python"
 DEFAULT_MODEL_DIR="artifacts/merged/turkcell-7b-turkish-v1"
@@ -150,7 +151,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${DEPLOY_DIR}
-ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_DIR} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag} ${enforce_eager_flag}
+ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_ACTIVE_LINK} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag} ${enforce_eager_flag}
 Restart=on-failure
 RestartSec=5
 
@@ -174,6 +175,14 @@ deploy() {
         echo "Config file not found: ${config}" >&2
         exit 1
     fi
+    local model_basename
+    model_basename="$(basename "${model_dir%/}")"
+    if [ -z "${model_basename}" ]; then
+        echo "Could not determine model basename from: ${model_dir}" >&2
+        exit 1
+    fi
+    local remote_model_dir
+    remote_model_dir="${REMOTE_MODELS_DIR}/${model_basename}"
 
     local host
     host="$(read_yaml_value "host" "0.0.0.0" "${config}")"
@@ -198,14 +207,19 @@ deploy() {
 
     echo "=== Deploying ${SERVICE_NAME} to ${SPARK_USER}@${SPARK_HOST} ==="
     echo "Model dir: ${model_dir}"
+    echo "Remote model dir: ${remote_model_dir}"
+    echo "Remote active link: ${REMOTE_MODEL_ACTIVE_LINK}"
     echo "Config: ${config}"
     echo "Python: ${python_bin}"
 
     echo "--- Preparing remote directories ---"
-    remote_exec "mkdir -p ${REMOTE_MODEL_DIR} ${DEPLOY_DIR}/configs ${SYSTEMD_USER_DIR}"
+    remote_exec "mkdir -p ${remote_model_dir} ${REMOTE_MODELS_DIR} ${DEPLOY_DIR}/configs ${SYSTEMD_USER_DIR}"
 
     echo "--- Syncing model ---"
-    remote_rsync "${model_dir}/" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_MODEL_DIR}/"
+    remote_rsync "${model_dir}/" "${SPARK_USER}@${SPARK_HOST}:${remote_model_dir}/"
+
+    echo "--- Updating active model symlink ---"
+    remote_exec "ln -sfn ${remote_model_dir} ${REMOTE_MODEL_ACTIVE_LINK} && readlink -f ${REMOTE_MODEL_ACTIVE_LINK}"
 
     echo "--- Uploading config ---"
     remote_scp "${config}" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_CONFIG_PATH}"
