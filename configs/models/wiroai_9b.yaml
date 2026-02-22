@@ -1,0 +1,27 @@
+# wiroai-turkish-llm-9b: Gemma-based Turkish LLM
+# High-quality SFT on curated Turkish instructions
+# Hardware: Single V100 32GB — tight fit, reduced seq length
+
+_base: "../base.yaml"
+
+model:
+  name: "wiroai/wiroai-turkish-llm-9b"
+  max_seq_length: 1024
+  dtype: "float16"
+
+training:
+  num_epochs: 2
+  per_device_train_batch_size: 1
+  learning_rate: 1.5e-4
+  gradient_accumulation_steps: 16
+
+data:
+  train_path: "data/processed/turkish_sft.jsonl"
+  eval_path: "data/processed/turkish_eval.jsonl"
+
+lora:
+  r: 16
+  alpha: 32
+
+wandb:
+  run_name: "wiroai-9b-sft-v1"

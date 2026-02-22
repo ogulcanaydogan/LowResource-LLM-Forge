@@ -1,0 +1,10 @@
+FROM vllm/vllm-openai:latest
+
+WORKDIR /app
+
+COPY configs/serving/vllm_dgx.yaml /app/config.yaml
+
+ENV MODEL_PATH=/models/merged
+
+ENTRYPOINT ["python", "-m", "vllm.entrypoints.openai.api_server"]
+CMD ["--model", "/models/merged", "--host", "0.0.0.0", "--port", "8000", "--dtype", "float16", "--gpu-memory-utilization", "0.90", "--max-model-len", "4096", "--enable-prefix-caching"]

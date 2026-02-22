@@ -1,0 +1,7 @@
+# Replicate deployment configuration
+
+model_path: "artifacts/merged/turkcell-7b-turkish-v1"
+hub_repo: "ogulcanaydogan/turkcell-7b-turkish-sft"
+cog_gpu: "T4"
+max_tokens: 2048
+temperature: 0.7

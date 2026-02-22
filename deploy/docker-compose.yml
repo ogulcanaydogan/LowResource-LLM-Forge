@@ -1,0 +1,35 @@
+services:
+  train:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.train
+    volumes:
+      - ../data:/app/data
+      - ../artifacts:/app/artifacts
+      - ../configs:/app/configs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - WANDB_API_KEY=${WANDB_API_KEY}
+
+  serve:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.serve
+    volumes:
+      - ../artifacts/merged:/models/merged:ro
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

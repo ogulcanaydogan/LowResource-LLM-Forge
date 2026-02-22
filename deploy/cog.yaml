@@ -1,0 +1,9 @@
+build:
+  gpu: true
+  python_version: "3.11"
+  python_packages:
+    - "torch>=2.1.0"
+    - "transformers>=4.36.0"
+    - "accelerate>=0.25.0"
+
+predict: "src/forge/serving/replicate_predict.py:Predictor"

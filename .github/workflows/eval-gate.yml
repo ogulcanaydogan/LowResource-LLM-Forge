@@ -1,0 +1,38 @@
+name: eval-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_path:
+        description: "Path to model on HuggingFace Hub"
+        required: true
+      benchmarks:
+        description: "Comma-separated benchmarks (mmlu_tr,perplexity,generation)"
+        required: false
+        default: "perplexity,generation"
+
+jobs:
+  evaluate:
+    runs-on: [self-hosted, gpu]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Install dependencies
+        run: uv sync --extra eval
+
+      - name: Run evaluation
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          uv run python scripts/run_eval.py \
+            --model ${{ github.event.inputs.model_path }} \
+            --output-dir artifacts/eval/
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: artifacts/eval/

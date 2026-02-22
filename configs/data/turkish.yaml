@@ -1,0 +1,28 @@
+# Turkish language data pipeline configuration
+
+language: tr
+language_name: Turkish
+
+sources:
+  huggingface:
+    - repo: "malhajar/Turkce-Instruct-Merged"
+      split: train
+      format: alpaca
+
+    - repo: "Overfit-GM/turkish-text-data"
+      split: train
+      format: raw_text
+
+preprocessing:
+  min_length: 50
+  max_length: 8192
+  dedup_method: minhash
+  dedup_threshold: 0.85
+  clean_html: true
+  normalize_unicode: true
+
+output:
+  sft_path: "data/processed/turkish_sft.jsonl"
+  dpo_path: "data/processed/turkish_dpo.jsonl"
+  eval_path: "data/processed/turkish_eval.jsonl"
+  eval_split_ratio: 0.05

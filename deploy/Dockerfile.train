@@ -1,0 +1,22 @@
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 python3.11-venv python3-pip git curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3.11 -m pip install --no-cache-dir uv
+
+WORKDIR /app
+
+COPY pyproject.toml .
+COPY src/ src/
+COPY configs/ configs/
+COPY scripts/ scripts/
+
+RUN uv sync --extra unsloth
+
+ENTRYPOINT ["uv", "run", "python"]
+CMD ["scripts/run_training.py", "--config", "configs/models/turkcell_7b.yaml"]

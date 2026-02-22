@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+*.egg-info/
+dist/
+build/
+
+# ML artifacts
+artifacts/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+*.onnx
+wandb/
+
+# Data
+data/raw/
+data/processed/
+
+# Environment
+.env
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Notebooks
+.ipynb_checkpoints/
