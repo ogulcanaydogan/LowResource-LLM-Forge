@@ -4,22 +4,36 @@ set -euo pipefail
 
 SPARK_TARGET="${SPARK_TARGET:-spark}"
 VM330_TARGET="${VM330_TARGET:-weezboo@10.34.9.233}"
+SPARK_SSH_IDENTITY="${SPARK_SSH_IDENTITY:-}"
+VM330_SSH_IDENTITY="${VM330_SSH_IDENTITY:-}"
 RUNNER_NAME="${RUNNER_NAME:-vm330-gpu-runner}"
 REPO_SLUG="${REPO_SLUG:-ogulcanaydogan/LowResource-LLM-Forge}"
+
+ssh_run() {
+    local target="$1"
+    local identity="$2"
+    local remote_cmd="$3"
+    local opts=(-o BatchMode=yes -o ConnectTimeout=8)
+    if [ -n "${identity}" ]; then
+        opts+=(-i "${identity}" -o IdentitiesOnly=yes)
+    fi
+    ssh "${opts[@]}" "${target}" "${remote_cmd}"
+}
 
 print_host_block() {
     local label="$1"
     local target="$2"
+    local identity="${3:-}"
 
     echo "[$label]"
-    if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "${target}" "echo ok" >/dev/null 2>&1; then
+    if ! ssh_run "${target}" "${identity}" "echo ok" >/dev/null 2>&1; then
         echo "  reachable: no"
         echo
         return
     fi
 
     local payload
-    payload="$(ssh -o BatchMode=yes "${target}" '
+    payload="$(ssh_run "${target}" "${identity}" '
 svc="$(systemctl --user is-active forge-vllm.service 2>/dev/null || echo unknown)"
 smoke_timer="$(systemctl --user is-active forge-smoke-check.timer 2>/dev/null || echo unknown)"
 health="$(curl --max-time 8 -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18000/health || true)"
@@ -40,8 +54,8 @@ echo "Forge Runtime Dashboard"
 echo "generated_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo
 
-print_host_block "spark" "${SPARK_TARGET}"
-print_host_block "vm330" "${VM330_TARGET}"
+print_host_block "spark" "${SPARK_TARGET}" "${SPARK_SSH_IDENTITY}"
+print_host_block "vm330" "${VM330_TARGET}" "${VM330_SSH_IDENTITY}"
 
 echo "[github-runner]"
 if command -v gh >/dev/null 2>&1; then

@@ -8,6 +8,7 @@ set -euo pipefail
 SPARK_HOST="${SPARK_HOST:-${DEPLOY_HOST:-spark}}"
 SPARK_USER="${SPARK_USER:-${DEPLOY_USER:-weezboo}}"
 SSH_PASSWORD="${SSH_PASSWORD:-}"
+SPARK_SSH_IDENTITY="${SPARK_SSH_IDENTITY:-${DEPLOY_SSH_IDENTITY:-}}"
 DEPLOY_DIR="/home/${SPARK_USER}/llm-forge"
 SERVICE_NAME="forge-vllm"
 SYSTEMD_USER_DIR="/home/${SPARK_USER}/.config/systemd/user"
@@ -31,6 +32,7 @@ Usage:
 
 Examples:
   DEPLOY_HOST=spark bash scripts/deploy_vllm.sh deploy
+  DEPLOY_HOST=100.80.116.20 DEPLOY_SSH_IDENTITY=~/.ssh/id_github_weez bash scripts/deploy_vllm.sh deploy
   DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD=... bash scripts/deploy_vllm.sh deploy
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_spark.yaml
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
@@ -74,43 +76,60 @@ read_yaml_value() {
 }
 
 remote_exec() {
+    local identity_opts=()
+    if [ -n "${SPARK_SSH_IDENTITY}" ]; then
+        identity_opts=(-i "${SPARK_SSH_IDENTITY}" -o IdentitiesOnly=yes)
+    fi
+
     if [ -n "${SSH_PASSWORD}" ]; then
         sshpass -p "${SSH_PASSWORD}" ssh \
+            "${identity_opts[@]}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "${SPARK_USER}@${SPARK_HOST}" "$@"
         return
     fi
 
-    ssh "${SPARK_USER}@${SPARK_HOST}" "$@"
+    ssh "${identity_opts[@]}" "${SPARK_USER}@${SPARK_HOST}" "$@"
 }
 
 remote_scp() {
     local src="$1"
     local dst="$2"
+    local identity_opts=()
+    if [ -n "${SPARK_SSH_IDENTITY}" ]; then
+        identity_opts=(-i "${SPARK_SSH_IDENTITY}" -o IdentitiesOnly=yes)
+    fi
+
     if [ -n "${SSH_PASSWORD}" ]; then
         sshpass -p "${SSH_PASSWORD}" scp \
+            "${identity_opts[@]}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "${src}" "${dst}"
         return
     fi
 
-    scp "${src}" "${dst}"
+    scp "${identity_opts[@]}" "${src}" "${dst}"
 }
 
 remote_rsync() {
     local src="$1"
     local dst="$2"
+    local ssh_cmd="ssh"
+    if [ -n "${SPARK_SSH_IDENTITY}" ]; then
+        ssh_cmd+=" -i ${SPARK_SSH_IDENTITY} -o IdentitiesOnly=yes"
+    fi
+
     if [ -n "${SSH_PASSWORD}" ]; then
         sshpass -p "${SSH_PASSWORD}" rsync \
-            -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            -e "${ssh_cmd} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             -avz --delete --progress \
             "${src}" "${dst}"
         return
     fi
 
-    rsync -avz --delete --progress "${src}" "${dst}"
+    rsync -e "${ssh_cmd}" -avz --delete --progress "${src}" "${dst}"
 }
 
 systemctl_user() {
