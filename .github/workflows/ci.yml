@@ -29,3 +29,18 @@ jobs:
 
       - name: Tests
         run: uv run pytest --cov=forge --cov-report=xml --cov-fail-under=40 -v
+
+      - name: Serving smoke check
+        env:
+          FORGE_SERVE_BASE_URL: ${{ secrets.FORGE_SERVE_BASE_URL }}
+          FORGE_SERVE_EXPECT_MODEL: ${{ secrets.FORGE_SERVE_EXPECT_MODEL }}
+        run: |
+          if [ "${RUNNER_ENVIRONMENT:-}" != "self-hosted" ]; then
+            echo "Non self-hosted runner detected; skipping serving smoke check."
+            exit 0
+          fi
+          if [ -z "${FORGE_SERVE_BASE_URL}" ]; then
+            echo "FORGE_SERVE_BASE_URL secret not set; skipping serving smoke check."
+            exit 0
+          fi
+          uv run python scripts/smoke_serve.py

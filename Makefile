@@ -1,4 +1,4 @@
-.PHONY: dev test lint typecheck train eval serve download-data
+.PHONY: dev test lint typecheck train eval serve smoke-serve download-data
 
 TRAIN_CONFIG ?= configs/models/turkcell_7b.yaml
 SERVE_CONFIG ?= configs/serving/vllm_dgx.yaml
@@ -28,6 +28,17 @@ eval:
 
 serve:
 	uv run python scripts/run_serve.py --config $(SERVE_CONFIG)
+
+smoke-serve:
+	@if [ -z "$(SERVE_BASE_URL)" ]; then \
+		echo "Usage: make smoke-serve SERVE_BASE_URL=http://<host>:<port> [EXPECT_MODEL=<id>]"; \
+		exit 1; \
+	fi
+	@if [ -n "$(EXPECT_MODEL)" ]; then \
+		uv run python scripts/smoke_serve.py --base-url "$(SERVE_BASE_URL)" --expected-model "$(EXPECT_MODEL)"; \
+	else \
+		uv run python scripts/smoke_serve.py --base-url "$(SERVE_BASE_URL)"; \
+	fi
 
 download-data:
 	uv run python scripts/download_data.py --config $(DATA_CONFIG)

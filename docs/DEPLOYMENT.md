@@ -51,10 +51,21 @@ journalctl --user -u forge-vllm
 ```bash
 # Warmup can take ~30-90s on first start.
 curl http://<host>:18000/health
+curl http://<host>:18000/v1/models
 curl http://<host>:18000/v1/completions \
     -H "Content-Type: application/json" \
     -d '{"model": "model", "prompt": "Merhaba, nasılsın?", "max_tokens": 100}'
+
+# Project smoke check helper
+make smoke-serve SERVE_BASE_URL=http://<host>:18000
 ```
+
+## CI Smoke Check
+
+- `ci.yml` includes an optional smoke step and skips on GitHub-hosted runners.
+- `eval-gate.yml` (self-hosted GPU runner) can execute smoke checks with `workflow_dispatch` inputs:
+  - `serve_base_url` (optional, enables smoke check when set)
+  - `serve_expected_model` (optional)
 
 ## Docker
 

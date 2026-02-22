@@ -10,6 +10,14 @@ on:
         description: "Comma-separated benchmarks (mmlu_tr,perplexity,generation)"
         required: false
         default: "perplexity,generation"
+      serve_base_url:
+        description: "Optional serving URL for smoke check (e.g. http://10.34.9.233:18000)"
+        required: false
+        default: ""
+      serve_expected_model:
+        description: "Optional expected model id in /v1/models response"
+        required: false
+        default: ""
 
 jobs:
   evaluate:
@@ -22,6 +30,13 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --extra eval
+
+      - name: Serving smoke check
+        if: ${{ github.event.inputs.serve_base_url != '' }}
+        env:
+          FORGE_SERVE_BASE_URL: ${{ github.event.inputs.serve_base_url }}
+          FORGE_SERVE_EXPECT_MODEL: ${{ github.event.inputs.serve_expected_model }}
+        run: uv run python scripts/smoke_serve.py
 
       - name: Run evaluation
         env:
