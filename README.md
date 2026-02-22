@@ -127,6 +127,7 @@ make smoke-serve SERVE_BASE_URL=http://10.34.9.233:18000
 ```
 
 First startup may take ~30-90 seconds due model load and graph warmup. Wait for `/health` to return `200`.
+Deploy uses a versioned model directory under `~/llm-forge/models/<model_name>/` and atomically switches `~/llm-forge/model-active` on each deploy.
 Spark profile enables eager mode to avoid Triton/PTX compile issues on GB10 GPUs.
 
 **Docker:**
