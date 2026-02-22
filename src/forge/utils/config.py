@@ -128,6 +128,7 @@ class ServingConfig(BaseModel):
     dtype: str = "float16"
     enable_prefix_caching: bool = True
     max_num_seqs: int = 64
+    trust_remote_code: bool = False
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

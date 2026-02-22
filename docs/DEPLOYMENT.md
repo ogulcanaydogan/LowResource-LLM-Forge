@@ -1,20 +1,30 @@
 # Deployment Guide
 
-## DGX Spark (vLLM)
+## vLLM on Remote GPU Hosts (user-level systemd)
 
 ### Prerequisites
-- SSH access to DGX Spark
+- SSH access to target host (key or password auth)
 - Merged model at `artifacts/merged/<model-name>/`
-- User-level systemd available on DGX (`systemctl --user`)
+- User-level systemd available (`systemctl --user`)
+- Remote Python with `vllm` installed (see `python_bin` in serving config)
 
 ### Deploy
 
 ```bash
+# Default target (spark via SSH config)
 bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+
+# Override target host/user
+DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo bash scripts/deploy_vllm.sh deploy \
+  artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+
+# Password SSH fallback
+DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD='***' bash scripts/deploy_vllm.sh deploy \
+  artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
 ```
 
 This will:
-1. Create deployment directory on Spark
+1. Create deployment directory on remote host
 2. Sync model weights via rsync
 3. Install/update `~/.config/systemd/user/forge-vllm.service`
 4. Reload systemd user daemon
@@ -39,8 +49,9 @@ journalctl --user -u forge-vllm
 ### Verify
 
 ```bash
-curl http://spark:8000/health
-curl http://spark:8000/v1/completions \
+# Warmup can take ~30-90s on first start.
+curl http://<host>:18000/health
+curl http://<host>:18000/v1/completions \
     -H "Content-Type: application/json" \
     -d '{"model": "model", "prompt": "Merhaba, nasılsın?", "max_tokens": 100}'
 ```
@@ -59,7 +70,7 @@ docker compose -f deploy/docker-compose.yml up train
 ```bash
 # Mount your merged model
 docker compose -f deploy/docker-compose.yml up serve
-# API available at http://localhost:8000/v1
+# API available at http://localhost:18000/v1
 ```
 
 ## Replicate

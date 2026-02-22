@@ -2,10 +2,12 @@
 
 model_path: "artifacts/merged/turkcell-7b-turkish-v1"
 host: "0.0.0.0"
-port: 8000
+port: 18000
 tensor_parallel_size: 1
 gpu_memory_utilization: 0.90
 max_model_len: 4096
 dtype: "float16"
 enable_prefix_caching: true
+trust_remote_code: false
+python_bin: "/home/weezboo/LowResource-LLM-Forge/.venv/bin/python"
 max_num_seqs: 64

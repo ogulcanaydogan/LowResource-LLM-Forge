@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import time
 
 import httpx
@@ -23,7 +24,9 @@ class VLLMServer:
     def start(self, wait: bool = True, timeout: int = 120) -> None:
         """Start vLLM server as a subprocess."""
         cmd = [
-            "python", "-m", "vllm.entrypoints.openai.api_server",
+            sys.executable,
+            "-m",
+            "vllm.entrypoints.openai.api_server",
             "--model", self.config.model_path,
             "--host", self.config.host,
             "--port", str(self.config.port),
@@ -35,6 +38,8 @@ class VLLMServer:
 
         if self.config.enable_prefix_caching:
             cmd.append("--enable-prefix-caching")
+        if self.config.trust_remote_code:
+            cmd.append("--trust-remote-code")
 
         logger.info("starting_vllm", model=self.config.model_path, port=self.config.port)
         self._process = subprocess.Popen(cmd)
@@ -54,9 +59,10 @@ class VLLMServer:
 
     def health_check(self) -> bool:
         """Check if server is responding."""
+        host = "127.0.0.1" if self.config.host in {"0.0.0.0", "::"} else self.config.host
         try:
             r = httpx.get(
-                f"http://{self.config.host}:{self.config.port}/health",
+                f"http://{host}:{self.config.port}/health",
                 timeout=5,
             )
             return r.status_code == 200

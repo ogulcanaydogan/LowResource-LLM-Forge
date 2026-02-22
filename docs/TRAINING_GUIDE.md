@@ -90,6 +90,6 @@ uv run python scripts/run_eval.py --model artifacts/merged/my-model-v1
 
 **Out of memory**: Reduce `max_seq_length`, `per_device_train_batch_size`, or `lora_r`.
 
-**Unsloth not found**: Install with `uv sync --extra unsloth`. Falls back to standard PEFT automatically.
+**Unsloth not found**: Install training extras with `uv sync --extra train`. Pipeline falls back to standard PEFT automatically when Unsloth is unavailable.
 
 **Poor Turkish output**: Check tokenizer coverage — models not trained on Turkish may tokenize inefficiently, reducing effective context length.

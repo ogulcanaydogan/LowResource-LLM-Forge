@@ -104,16 +104,24 @@ uv run python scripts/run_eval.py --model TURKCELL/Turkcell-LLM-7b-v1 --benchmar
 
 ### Inference Serving
 
-**vLLM (DGX Spark):**
+**vLLM (remote host, user-level systemd):**
 
 ```bash
+# Key-based SSH host (default: spark)
 bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+
+# Password SSH host example (VM330)
+DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD='***' \
+  bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+
 bash scripts/deploy_vllm.sh status
 bash scripts/deploy_vllm.sh logs
 
 # Start service process directly on a remote host
 uv run python scripts/run_serve.py --config configs/serving/vllm_dgx.yaml
 ```
+
+First startup may take ~30-90 seconds due model load and graph warmup. Wait for `/health` to return `200`.
 
 **Docker:**
 

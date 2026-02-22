@@ -2,13 +2,18 @@
 # Deploy and manage vLLM on DGX Spark via user-level systemd.
 set -euo pipefail
 
-SPARK_HOST="${SPARK_HOST:-spark}"
-SPARK_USER="${SPARK_USER:-weezboo}"
+# Backward-compatible aliases:
+# - SPARK_HOST / SPARK_USER (legacy)
+# - DEPLOY_HOST / DEPLOY_USER (generic)
+SPARK_HOST="${SPARK_HOST:-${DEPLOY_HOST:-spark}}"
+SPARK_USER="${SPARK_USER:-${DEPLOY_USER:-weezboo}}"
+SSH_PASSWORD="${SSH_PASSWORD:-}"
 DEPLOY_DIR="/home/${SPARK_USER}/llm-forge"
 SERVICE_NAME="forge-vllm"
 SYSTEMD_USER_DIR="/home/${SPARK_USER}/.config/systemd/user"
 REMOTE_MODEL_DIR="${DEPLOY_DIR}/model"
 REMOTE_CONFIG_PATH="${DEPLOY_DIR}/configs/vllm.yaml"
+REMOTE_PYTHON_DEFAULT="/home/${SPARK_USER}/LowResource-LLM-Forge/.venv/bin/python"
 DEFAULT_MODEL_DIR="artifacts/merged/turkcell-7b-turkish-v1"
 DEFAULT_CONFIG="configs/serving/vllm_dgx.yaml"
 
@@ -23,6 +28,8 @@ Usage:
   bash scripts/deploy_vllm.sh logs
 
 Examples:
+  DEPLOY_HOST=spark bash scripts/deploy_vllm.sh deploy
+  DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD=... bash scripts/deploy_vllm.sh deploy
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
   bash scripts/deploy_vllm.sh status
 EOF
@@ -62,7 +69,43 @@ read_yaml_value() {
 }
 
 remote_exec() {
+    if [ -n "${SSH_PASSWORD}" ]; then
+        sshpass -p "${SSH_PASSWORD}" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "${SPARK_USER}@${SPARK_HOST}" "$@"
+        return
+    fi
+
     ssh "${SPARK_USER}@${SPARK_HOST}" "$@"
+}
+
+remote_scp() {
+    local src="$1"
+    local dst="$2"
+    if [ -n "${SSH_PASSWORD}" ]; then
+        sshpass -p "${SSH_PASSWORD}" scp \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "${src}" "${dst}"
+        return
+    fi
+
+    scp "${src}" "${dst}"
+}
+
+remote_rsync() {
+    local src="$1"
+    local dst="$2"
+    if [ -n "${SSH_PASSWORD}" ]; then
+        sshpass -p "${SSH_PASSWORD}" rsync \
+            -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            -avz --delete --progress \
+            "${src}" "${dst}"
+        return
+    fi
+
+    rsync -avz --delete --progress "${src}" "${dst}"
 }
 
 systemctl_user() {
@@ -77,10 +120,17 @@ write_service_file() {
     local max_model_len="$5"
     local dtype="$6"
     local enable_prefix_caching="$7"
+    local trust_remote_code="$8"
+    local python_bin="$9"
 
     local prefix_flag=""
     if [ "${enable_prefix_caching}" = "true" ]; then
         prefix_flag="--enable-prefix-caching"
+    fi
+
+    local trust_remote_code_flag=""
+    if [ "${trust_remote_code}" = "true" ]; then
+        trust_remote_code_flag="--trust-remote-code"
     fi
 
     local tmp_service
@@ -93,7 +143,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${DEPLOY_DIR}
-ExecStart=/usr/bin/env python -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_DIR} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag}
+ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_DIR} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag}
 Restart=on-failure
 RestartSec=5
 
@@ -101,7 +151,7 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-    scp "${tmp_service}" "${SPARK_USER}@${SPARK_HOST}:${SYSTEMD_USER_DIR}/${SERVICE_NAME}.service"
+    remote_scp "${tmp_service}" "${SPARK_USER}@${SPARK_HOST}:${SYSTEMD_USER_DIR}/${SERVICE_NAME}.service"
     rm -f "${tmp_service}"
 }
 
@@ -132,22 +182,36 @@ deploy() {
     dtype="$(read_yaml_value "dtype" "float16" "${config}")"
     local enable_prefix_caching
     enable_prefix_caching="$(read_yaml_value "enable_prefix_caching" "true" "${config}")"
+    local trust_remote_code
+    trust_remote_code="$(read_yaml_value "trust_remote_code" "false" "${config}")"
+    local python_bin
+    python_bin="$(read_yaml_value "python_bin" "${REMOTE_PYTHON_DEFAULT}" "${config}")"
 
     echo "=== Deploying ${SERVICE_NAME} to ${SPARK_USER}@${SPARK_HOST} ==="
     echo "Model dir: ${model_dir}"
     echo "Config: ${config}"
+    echo "Python: ${python_bin}"
 
     echo "--- Preparing remote directories ---"
     remote_exec "mkdir -p ${REMOTE_MODEL_DIR} ${DEPLOY_DIR}/configs ${SYSTEMD_USER_DIR}"
 
     echo "--- Syncing model ---"
-    rsync -avz --delete --progress "${model_dir}/" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_MODEL_DIR}/"
+    remote_rsync "${model_dir}/" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_MODEL_DIR}/"
 
     echo "--- Uploading config ---"
-    scp "${config}" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_CONFIG_PATH}"
+    remote_scp "${config}" "${SPARK_USER}@${SPARK_HOST}:${REMOTE_CONFIG_PATH}"
 
     echo "--- Installing systemd user unit ---"
-    write_service_file "${host}" "${port}" "${tensor_parallel}" "${gpu_memory_utilization}" "${max_model_len}" "${dtype}" "${enable_prefix_caching}"
+    write_service_file \
+        "${host}" \
+        "${port}" \
+        "${tensor_parallel}" \
+        "${gpu_memory_utilization}" \
+        "${max_model_len}" \
+        "${dtype}" \
+        "${enable_prefix_caching}" \
+        "${trust_remote_code}" \
+        "${python_bin}"
 
     echo "--- Reloading and starting service ---"
     systemctl_user daemon-reload
@@ -193,6 +257,9 @@ main() {
     require_cmd ssh
     require_cmd scp
     require_cmd rsync
+    if [ -n "${SSH_PASSWORD}" ]; then
+        require_cmd sshpass
+    fi
 
     local action="${1:-deploy}"
     shift || true

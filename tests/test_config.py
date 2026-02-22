@@ -135,3 +135,4 @@ def test_serving_config_defaults() -> None:
     assert cfg.port == 8000
     assert cfg.dtype == "float16"
     assert cfg.gpu_memory_utilization == 0.90
+    assert cfg.trust_remote_code is False
