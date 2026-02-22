@@ -125,8 +125,9 @@ def test_load_data_config(tmp_path: Path) -> None:
 
 def test_eval_config_defaults() -> None:
     cfg = EvalConfig(model_path="test/model")
-    assert "mmlu_tr" in cfg.benchmarks
     assert "perplexity" in cfg.benchmarks
+    assert "generation" in cfg.benchmarks
+    assert "mmlu_tr" not in cfg.benchmarks
     assert cfg.device == "cuda"
 
 

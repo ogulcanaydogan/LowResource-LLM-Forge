@@ -28,7 +28,13 @@ class TurkishMMLUBenchmark:
 
         Returns dict with overall_accuracy, per_subject scores, and num_questions.
         """
-        import lm_eval
+        try:
+            import lm_eval
+        except ImportError as exc:  # pragma: no cover - optional dependency path
+            raise RuntimeError(
+                "Turkish MMLU requires lm-evaluation-harness (`lm_eval`) which is not "
+                "installed in this environment."
+            ) from exc
 
         logger.info("running_turkish_mmlu", model=self.model_path)
 
