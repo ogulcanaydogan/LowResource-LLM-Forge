@@ -1,10 +1,10 @@
 # vLLM serving configuration for DGX Spark
 
-model_path: "artifacts/merged/turkcell-7b-turkish-v1"
+model_path: "/home/weezboo/llm-forge/model-active"
 host: "0.0.0.0"
 port: 18000
 tensor_parallel_size: 1
-gpu_memory_utilization: 0.90
+gpu_memory_utilization: 0.70
 max_model_len: 4096
 dtype: "float16"
 enable_prefix_caching: true
