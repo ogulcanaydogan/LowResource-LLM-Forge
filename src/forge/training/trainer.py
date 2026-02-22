@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from datasets import load_dataset
-from transformers import TrainingArguments
 
 from forge.utils.config import TrainingConfig
 from forge.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+
+
+def _is_truthy(value: str | None) -> bool:
+    return bool(value and value.strip().lower() in _TRUE_VALUES)
 
 
 class ForgeTrainer:
@@ -88,6 +93,7 @@ class ForgeTrainer:
         self.model = AutoModelForCausalLM.from_pretrained(
             self.config.model.name,
             quantization_config=bnb_config,
+            torch_dtype=torch.float16,
             device_map="auto",
             trust_remote_code=True,
         )
@@ -101,12 +107,20 @@ class ForgeTrainer:
 
         self.model = prepare_model_for_kbit_training(self.model)
 
+        lora_bias = self.config.lora.bias.lower()
+        valid_lora_bias = {"none", "all", "lora_only"}
+        if lora_bias not in valid_lora_bias:
+            raise ValueError(
+                f"Invalid LoRA bias '{self.config.lora.bias}'. "
+                "Expected one of: none, all, lora_only."
+            )
+
         lora_config = LoraConfig(
             r=self.config.lora.r,
             lora_alpha=self.config.lora.alpha,
             lora_dropout=self.config.lora.dropout,
             target_modules=self.config.lora.target_modules,
-            bias=self.config.lora.bias,
+            bias=cast(Literal["none", "all", "lora_only"], lora_bias),
             task_type=self.config.lora.task_type,
         )
         self.model = get_peft_model(self.model, lora_config)
@@ -157,21 +171,9 @@ class ForgeTrainer:
 
         return prompt
 
-    def _format_prompts(self, examples: dict[str, list[str]]) -> list[str]:
-        """Format a batch of examples for SFTTrainer."""
-        prompts = []
-        for i in range(len(examples["instruction"])):
-            example = {
-                "instruction": examples["instruction"][i],
-                "input": examples.get("input", [""] * len(examples["instruction"]))[i],
-                "output": examples["output"][i],
-            }
-            prompts.append(self._format_prompt(example))
-        return prompts
-
     def train(self) -> Path:
         """Run training. Returns path to saved adapter."""
-        from trl import SFTTrainer
+        from trl import SFTConfig, SFTTrainer
 
         if self.model is None:
             raise RuntimeError("Call setup() before train()")
@@ -181,18 +183,41 @@ class ForgeTrainer:
         run_name = self.config.wandb.run_name or "forge-run"
         output_dir = Path(self.config.output_dir) / run_name
 
-        # Configure WandB
-        if self.config.wandb.enabled:
+        wandb_disabled = _is_truthy(os.getenv("WANDB_DISABLED"))
+        wandb_has_key = bool(os.getenv("WANDB_API_KEY"))
+        wandb_enabled = self.config.wandb.enabled and not wandb_disabled and wandb_has_key
+        if self.config.wandb.enabled and not wandb_enabled:
+            logger.warning(
+                "wandb_disabled_runtime",
+                reason="missing WANDB_API_KEY or WANDB_DISABLED set",
+            )
+
+        # Configure WandB.
+        if wandb_enabled:
             os.environ.setdefault("WANDB_PROJECT", self.config.wandb.project)
 
-        training_args = TrainingArguments(
+        effective_fp16 = self.config.training.fp16
+        effective_bf16 = self.config.training.bf16
+        if not self._use_unsloth and (effective_fp16 or effective_bf16):
+            # PEFT fallback can hit AMP scaler dtype issues on some V100/torch stacks.
+            # Disable mixed precision in fallback mode for runtime stability.
+            logger.warning(
+                "mixed_precision_disabled_peft_fallback",
+                reason="prevent amp scaler dtype mismatch on fallback backend",
+                requested_fp16=effective_fp16,
+                requested_bf16=effective_bf16,
+            )
+            effective_fp16 = False
+            effective_bf16 = False
+
+        training_args = SFTConfig(
             output_dir=str(output_dir),
             num_train_epochs=self.config.training.num_epochs,
             per_device_train_batch_size=self.config.training.per_device_train_batch_size,
             gradient_accumulation_steps=self.config.training.gradient_accumulation_steps,
             learning_rate=self.config.training.learning_rate,
-            fp16=self.config.training.fp16,
-            bf16=self.config.training.bf16,
+            fp16=effective_fp16,
+            bf16=effective_bf16,
             logging_steps=self.config.training.logging_steps,
             save_steps=self.config.training.save_steps,
             save_total_limit=self.config.training.save_total_limit,
@@ -203,19 +228,19 @@ class ForgeTrainer:
             weight_decay=self.config.training.weight_decay,
             seed=self.config.training.seed,
             max_steps=self.config.training.max_steps,
-            report_to="wandb" if self.config.wandb.enabled else "none",
+            report_to="wandb" if wandb_enabled else "none",
             run_name=run_name,
+            max_length=self.config.model.max_seq_length,
+            packing=False,
         )
 
         trainer = SFTTrainer(
             model=self.model,
-            tokenizer=self.tokenizer,
+            processing_class=self.tokenizer,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             args=training_args,
-            formatting_func=self._format_prompts,
-            max_seq_length=self.config.model.max_seq_length,
-            packing=True,
+            formatting_func=self._format_prompt,
         )
 
         logger.info("training_started", output_dir=str(output_dir))

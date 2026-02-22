@@ -9,6 +9,7 @@ from __future__ import annotations
 import gc
 import json
 from pathlib import Path
+from typing import Any
 
 import torch
 from peft import PeftModel
@@ -43,7 +44,7 @@ class LoRAMerger:
         )
 
         logger.info("loading_base_model", model=self.base_model_name)
-        model = AutoModelForCausalLM.from_pretrained(
+        base_model: Any = AutoModelForCausalLM.from_pretrained(
             self.base_model_name,
             torch_dtype=torch.float16,
             device_map="auto",
@@ -51,21 +52,21 @@ class LoRAMerger:
         )
 
         logger.info("loading_lora_adapters", path=str(self.adapter_path))
-        model = PeftModel.from_pretrained(model, str(self.adapter_path))
+        peft_model: Any = PeftModel.from_pretrained(base_model, str(self.adapter_path))
 
         logger.info("merging_weights")
-        model = model.merge_and_unload()
+        merged_model: Any = peft_model.merge_and_unload()
 
         logger.info("saving_merged_model", path=str(self.output_path))
         self.output_path.mkdir(parents=True, exist_ok=True)
-        model.save_pretrained(str(self.output_path))
+        merged_model.save_pretrained(str(self.output_path))
         tokenizer.save_pretrained(str(self.output_path))
 
         self._save_metadata()
 
         if push_to_hub and hub_repo:
             logger.info("pushing_to_hub", repo=hub_repo)
-            model.push_to_hub(hub_repo, private=True)
+            merged_model.push_to_hub(hub_repo, private=True)
             tokenizer.push_to_hub(hub_repo, private=True)
 
         self._cleanup()

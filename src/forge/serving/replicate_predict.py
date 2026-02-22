@@ -59,11 +59,13 @@ def _get_predictor_class() -> type:
                     pad_token_id=self.tokenizer.pad_token_id,
                 )
 
-            response = self.tokenizer.decode(
+            decoded = self.tokenizer.decode(
                 outputs[0][inputs["input_ids"].shape[1] :],
                 skip_special_tokens=True,
             )
-            return str(response.strip())
+            if isinstance(decoded, list):
+                decoded = " ".join(decoded)
+            return decoded.strip()
 
     return Predictor
 

@@ -80,10 +80,13 @@ class GenerationQualityBenchmark:
                     pad_token_id=tokenizer.pad_token_id,
                 )
 
-            response = tokenizer.decode(
+            decoded = tokenizer.decode(
                 outputs[0][inputs["input_ids"].shape[1] :],
                 skip_special_tokens=True,
-            ).strip()
+            )
+            if isinstance(decoded, list):
+                decoded = " ".join(decoded)
+            response = decoded.strip()
 
             score = self._score_response(response)
             scores.append(score)

@@ -55,7 +55,6 @@ class DataCollector:
             source.repo,
             name=source.subset,
             split=source.split,
-            trust_remote_code=True,
         )
 
         if limit > 0:
@@ -96,19 +95,36 @@ class DataCollector:
             return None
 
     def _from_alpaca(self, record: dict[str, Any]) -> dict[str, Any] | None:
-        """Normalize alpaca format (instruction/input/output)."""
-        instruction = record.get("instruction", "").strip()
-        if not instruction:
+        """Normalize common instruction/input/output variants."""
+        # Canonical alpaca schema.
+        instruction = str(record.get("instruction", "") or "").strip()
+        input_text = str(record.get("input", "") or "").strip()
+        output = str(record.get("output", "") or "").strip()
+
+        # Turkish-translated alpaca columns.
+        if not instruction and "talimat" in record:
+            instruction = str(record.get("talimat", "") or "").strip()
+            input_text = str(record.get(" giriş", "") or "").strip()
+            output = str(record.get(" çıktı", "") or "").strip()
+
+        # Chat triplet style (system/user/assistant).
+        if not instruction and "user" in record and "assistant" in record:
+            instruction = str(record.get("user", "") or "").strip()
+            input_text = str(record.get("system", "") or "").strip()
+            output = str(record.get("assistant", "") or "").strip()
+
+        if not instruction or not output:
             return None
+
         return {
             "instruction": instruction,
-            "input": record.get("input", "").strip(),
-            "output": record.get("output", "").strip(),
+            "input": input_text,
+            "output": output,
         }
 
     def _from_sharegpt(self, record: dict[str, Any]) -> dict[str, Any] | None:
         """Normalize ShareGPT format (conversations list)."""
-        convos = record.get("conversations", [])
+        convos = record.get("conversations") or record.get("messages") or []
         if len(convos) < 2:
             return None
 
@@ -117,6 +133,8 @@ class DataCollector:
         for turn in convos:
             role = turn.get("from", turn.get("role", ""))
             content = turn.get("value", turn.get("content", ""))
+            if not isinstance(content, str):
+                content = str(content)
             if role in ("human", "user") and not human_msg:
                 human_msg = content.strip()
             elif role in ("gpt", "assistant") and not assistant_msg:

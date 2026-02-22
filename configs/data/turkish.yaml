@@ -5,13 +5,13 @@ language_name: Turkish
 
 sources:
   huggingface:
-    - repo: "malhajar/Turkce-Instruct-Merged"
-      split: train
-      format: alpaca
-
-    - repo: "Overfit-GM/turkish-text-data"
+    - repo: "TFLai/Turkish-Dialog-Dataset"
       split: train
       format: raw_text
+
+    - repo: "syko818121/Syko-Turkish-Chat-V1"
+      split: train
+      format: sharegpt
 
 preprocessing:
   min_length: 50

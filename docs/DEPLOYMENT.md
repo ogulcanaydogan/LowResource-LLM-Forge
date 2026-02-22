@@ -33,14 +33,14 @@ bash scripts/deploy_vllm.sh logs
 Logs are read from:
 
 ```bash
-journalctl --user -u forge-vllm.service
+journalctl --user -u forge-vllm
 ```
 
 ### Verify
 
 ```bash
-curl http://spark-5fc3:8000/health
-curl http://spark-5fc3:8000/v1/completions \
+curl http://spark:8000/health
+curl http://spark:8000/v1/completions \
     -H "Content-Type: application/json" \
     -d '{"model": "model", "prompt": "Merhaba, nasılsın?", "max_tokens": 100}'
 ```

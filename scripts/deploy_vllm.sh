@@ -2,7 +2,7 @@
 # Deploy and manage vLLM on DGX Spark via user-level systemd.
 set -euo pipefail
 
-SPARK_HOST="${SPARK_HOST:-spark-5fc3}"
+SPARK_HOST="${SPARK_HOST:-spark}"
 SPARK_USER="${SPARK_USER:-weezboo}"
 DEPLOY_DIR="/home/${SPARK_USER}/llm-forge"
 SERVICE_NAME="forge-vllm"
