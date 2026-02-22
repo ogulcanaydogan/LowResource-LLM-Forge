@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 from forge.training.merge import patch_tokenizer_config_for_vllm
 
@@ -15,7 +16,9 @@ def _write_json(path: Path, data: dict[str, object]) -> None:
 
 def _read_json(path: Path) -> dict[str, object]:
     with open(path) as f:
-        return json.load(f)
+        data = json.load(f)
+    assert isinstance(data, dict)
+    return cast(dict[str, object], data)
 
 
 def test_patch_tokenizer_config_for_vllm_rewrites_bad_class(tmp_path: Path) -> None:
