@@ -111,7 +111,7 @@ class EvalConfig(BaseModel):
 
     model_path: str
     base_model_name: str = ""
-    benchmarks: list[str] = Field(default_factory=lambda: ["mmlu_tr", "perplexity", "generation"])
+    benchmarks: list[str] = Field(default_factory=lambda: ["perplexity", "generation"])
     output_dir: str = "artifacts/eval"
     device: str = "cuda"
 

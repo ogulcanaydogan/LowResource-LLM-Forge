@@ -29,7 +29,7 @@ Heuristic scoring on Turkish text generation from 10 diverse prompts.
 ## Running Evaluations
 
 ```bash
-# All benchmarks
+# Default benchmarks (perplexity + generation)
 uv run python scripts/run_eval.py --model <model-path>
 
 # Single benchmark
@@ -37,6 +37,10 @@ uv run python scripts/run_eval.py --model <model-path> --benchmark perplexity
 
 # Results saved to artifacts/eval/report.md and artifacts/eval/results.json
 ```
+
+### Optional: Turkish MMLU
+
+`mmlu_tr` requires `lm-evaluation-harness` (`lm_eval`) installed in the evaluation environment.
 
 ## Adding Custom Benchmarks
 

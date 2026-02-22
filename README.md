@@ -89,12 +89,14 @@ uv run python scripts/merge_and_push.py \
 Run benchmarks against base or fine-tuned models:
 
 ```bash
-# All benchmarks
+# Default benchmarks (perplexity + generation)
 uv run python scripts/run_eval.py --model artifacts/merged/turkcell-7b-turkish-v1
 
 # Single benchmark
 uv run python scripts/run_eval.py --model TURKCELL/Turkcell-LLM-7b-v1 --benchmark perplexity
 ```
+
+Turkish MMLU is optional and requires separate install of `lm-evaluation-harness` in the target evaluation environment.
 
 | Benchmark | Method | Pass Threshold |
 |-----------|--------|---------------|

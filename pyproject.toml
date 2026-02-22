@@ -31,7 +31,6 @@ train = [
 eval = [
     "torch>=2.1.0",
     "transformers>=4.36.0",
-    "lm-eval>=0.4.0",
 ]
 # These are environment-specific and mutually exclusive (different torch versions)
 # Install on target machines with: pip install unsloth[cu121] or pip install vllm

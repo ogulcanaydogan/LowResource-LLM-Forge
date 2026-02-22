@@ -24,8 +24,8 @@ def test_benchmark_result_creation() -> None:
 
 def test_eval_config_defaults() -> None:
     cfg = EvalConfig(model_path="test/model")
-    assert len(cfg.benchmarks) == 3
-    assert "mmlu_tr" in cfg.benchmarks
+    assert len(cfg.benchmarks) == 2
+    assert "mmlu_tr" not in cfg.benchmarks
     assert "perplexity" in cfg.benchmarks
     assert "generation" in cfg.benchmarks
 
