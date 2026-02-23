@@ -1,4 +1,4 @@
-"""Training callbacks: early stopping on eval loss plateau."""
+"""Early stopping callback for SFT training."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ class EarlyStoppingOnPlateau:
     """
 
     def __init__(self, patience: int = 5, min_delta: float = 0.001) -> None:
-        self.patience = patience
-        self.min_delta = min_delta
+        self.patience = patience  # eval steps to wait
+        self.min_delta = min_delta  # min improvement to reset counter
         self._best_loss: float | None = None
         self._wait = 0
 
@@ -55,4 +55,5 @@ class EarlyStoppingOnPlateau:
             )
             if self._wait >= self.patience:
                 logger.info("early_stopping", step=state.global_step)
+                # HF Trainer checks this flag after eval
                 control.should_training_stop = True

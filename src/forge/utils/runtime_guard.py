@@ -1,15 +1,13 @@
-"""Safety guard for model-loading commands.
+"""Block model-loading commands in local shells.
 
-By default, model-loading operations are blocked in local shells to avoid
-accidental long-running GPU processes. Remote sessions (SSH), CI jobs, and
-explicit local override are allowed.
+Prevents accidentally spinning up a 7B model on a MacBook.
 """
 
 from __future__ import annotations
 
 import os
 
-_REMOTE_CONTEXT_VALUES = {"remote", "dgx", "v100", "ci"}
+_REMOTE_CONTEXT_VALUES = {"remote", "dgx", "v100", "ci"}  # see deploy scripts
 _SSH_MARKERS = ("SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY")
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 

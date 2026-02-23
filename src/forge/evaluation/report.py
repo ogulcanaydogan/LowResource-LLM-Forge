@@ -1,4 +1,4 @@
-"""Generate evaluation reports in Markdown and JSON."""
+"""Markdown and JSON report generation for eval results."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 
 class EvalReportGenerator:
-    """Generate evaluation reports from benchmark results."""
+    """Writes results.json and report.md from benchmark runs."""
 
     def __init__(self, results: list[BenchmarkResult], output_dir: Path) -> None:
         self.results = results
@@ -45,7 +45,7 @@ class EvalReportGenerator:
             },
         }
         with open(path, "w") as f:
-            json.dump(data, f, indent=2, default=str)
+            json.dump(data, f, indent=2, default=str)  # default=str handles datetime
         logger.info("json_report_written", path=str(path))
         return path
 
@@ -80,7 +80,7 @@ class EvalReportGenerator:
             lines.append("")
             for key, value in r.details.items():
                 if key == "samples":
-                    continue
+                    continue  # too verbose for the summary
                 lines.append(f"- **{key}:** {value}")
             lines.append("")
 

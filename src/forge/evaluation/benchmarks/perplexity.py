@@ -12,11 +12,7 @@ logger = get_logger(__name__)
 
 
 class PerplexityBenchmark:
-    """Calculate perplexity on held-out text.
-
-    Lower perplexity = better language modeling.
-    Compare fine-tuned vs base model to measure improvement.
-    """
+    """Perplexity on held-out Turkish text. Lower is better."""
 
     def __init__(
         self,
@@ -44,13 +40,13 @@ class PerplexityBenchmark:
         )
         model = AutoModelForCausalLM.from_pretrained(
             self.model_path,
-            torch_dtype=torch.float16,
+            torch_dtype=torch.float16,  # fp16 only, V100 constraint
             device_map="auto",
             trust_remote_code=True,
         )
         model.eval()
 
-        if tokenizer.pad_token is None:
+        if tokenizer.pad_token is None:  # most Turkish models don't set pad_token
             tokenizer.pad_token = tokenizer.eos_token
 
         # Load eval texts
@@ -87,7 +83,7 @@ class PerplexityBenchmark:
                     text,
                     return_tensors="pt",
                     truncation=True,
-                    max_length=2048,
+                    max_length=2048,  # match training seq length
                 ).to(model.device)
 
                 outputs = model(**encodings, labels=encodings["input_ids"])
@@ -98,6 +94,7 @@ class PerplexityBenchmark:
                 total_tokens += num_tokens
 
         avg_loss = total_loss / total_tokens if total_tokens > 0 else float("inf")
+        # guard against exp() overflow on degenerate models
         perplexity = math.exp(avg_loss) if avg_loss < 100 else float("inf")
 
         result = {

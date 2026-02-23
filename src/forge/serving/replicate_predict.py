@@ -22,7 +22,7 @@ def _get_predictor_class() -> type:
             from transformers import AutoModelForCausalLM, AutoTokenizer
 
             self.model = AutoModelForCausalLM.from_pretrained(
-                "model_weights",
+                "model_weights",  # cog bundles weights at this path
                 torch_dtype=torch.float16,
                 device_map="auto",
             )
@@ -46,6 +46,7 @@ def _get_predictor_class() -> type:
             """Generate text from prompt."""
             import torch
 
+            # must match training format exactly
             formatted = f"### Instruction:\n{prompt}\n\n### Response:\n"
             inputs = self.tokenizer(formatted, return_tensors="pt").to(self.model.device)
 
@@ -63,7 +64,7 @@ def _get_predictor_class() -> type:
                 outputs[0][inputs["input_ids"].shape[1] :],
                 skip_special_tokens=True,
             )
-            if isinstance(decoded, list):
+            if isinstance(decoded, list):  # some tokenizer versions return list
                 return " ".join(str(part) for part in decoded).strip()
             return str(decoded).strip()
 
