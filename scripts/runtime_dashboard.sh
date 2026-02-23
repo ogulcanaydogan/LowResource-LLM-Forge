@@ -37,7 +37,7 @@ print_host_block() {
 svc="$(systemctl --user is-active forge-vllm.service 2>/dev/null || echo unknown)"
 smoke_timer="$(systemctl --user is-active forge-smoke-check.timer 2>/dev/null || echo unknown)"
 health="$(curl --max-time 8 -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18000/health || true)"
-model="$(curl --max-time 12 -fsS http://127.0.0.1:18000/v1/models 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get(\"data\") or [{}])[0].get(\"id\", \"unknown\"))" 2>/dev/null || echo unknown)"
+model="$(systemctl --user cat forge-vllm.service 2>/dev/null | sed -n "s/^[[:space:]]*ExecStart=.*--model \\([^[:space:]]*\\).*/\\1/p" | tail -n1 || echo unknown)"
 smoke_last="$(tail -n 1 ~/llm-forge/monitor/checks.log 2>/dev/null || echo none)"
 alert_last="$(tail -n 1 ~/llm-forge/monitor/alerts.log 2>/dev/null || echo none)"
 printf "service=%s\nsmoke_timer=%s\nhealth=%s\nmodel=%s\nsmoke_last=%s\nalert_last=%s\n" \

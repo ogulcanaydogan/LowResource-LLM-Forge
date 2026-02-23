@@ -1,0 +1,21 @@
+# Whisper audio transcription configuration for Turkish
+#
+# Usage:
+#   uv run python scripts/transcribe_audio.py \
+#       --config configs/data/whisper.yaml \
+#       --audio-dir /path/to/turkish-audio/
+
+model_size: medium     # tiny, base, small, medium, large, large-v3
+language: tr
+confidence_threshold: 0.6
+
+# Output path for transcribed JSONL (alpaca format)
+output_path: "data/raw/tr/whisper_transcripts.jsonl"
+
+# Audio file extensions to process
+extensions:
+  - .wav
+  - .mp3
+  - .flac
+  - .m4a
+  - .ogg

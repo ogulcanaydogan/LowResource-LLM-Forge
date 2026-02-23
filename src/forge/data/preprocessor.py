@@ -14,6 +14,39 @@ from forge.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+# Common words by Turkic language for lightweight detection.
+_LANGUAGE_MARKERS: dict[str, set[str]] = {
+    "tr": {"ve", "bir", "bu", "ile", "için", "olan", "gibi", "daha", "ancak", "hem"},
+    "az": {"və", "bir", "bu", "ilə", "üçün", "olan", "kimi", "daha", "lakin", "həm"},
+}
+
+
+def detect_language_heuristic(
+    text: str, candidates: set[str] | None = None,
+) -> str | None:
+    """Return best-matching Turkic language code, or None if unclear.
+
+    Uses keyword overlap with known Turkic word sets.  Intentionally
+    lightweight — requires no external library.
+    """
+    if candidates is None:
+        candidates = set(_LANGUAGE_MARKERS.keys())
+
+    words = set(text.lower().split())
+    best_lang: str | None = None
+    best_score = 0
+    for lang, markers in _LANGUAGE_MARKERS.items():
+        if lang not in candidates:
+            continue
+        score = len(words & markers)
+        if score > best_score:
+            best_score = score
+            best_lang = lang
+
+    # Require at least 2 marker hits to make a call.
+    return best_lang if best_score >= 2 else None
+
+
 class DataPreprocessor:
     """Clean and deduplicate training data."""
 
@@ -23,7 +56,10 @@ class DataPreprocessor:
 
     def process_file(self, input_path: Path, output_path: Path) -> dict[str, int]:
         """Process a JSONL file. Returns stats dict with counts."""
-        stats = {"total": 0, "kept": 0, "too_short": 0, "too_long": 0, "duplicate": 0}
+        stats = {
+            "total": 0, "kept": 0, "too_short": 0,
+            "too_long": 0, "duplicate": 0, "wrong_language": 0,
+        }
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -52,11 +88,24 @@ class DataPreprocessor:
                     stats["duplicate"] += 1
                     continue
 
+                if self.config.target_language and not self._matches_language(text):
+                    stats["wrong_language"] += 1
+                    continue
+
                 fout.write(json.dumps(record, ensure_ascii=False) + "\n")
                 stats["kept"] += 1
 
         logger.info("preprocessing_complete", path=str(input_path), **stats)
         return stats
+
+    def _matches_language(self, text: str) -> bool:
+        """Check if text matches the configured target language."""
+        target = self.config.target_language
+        if not target or target not in _LANGUAGE_MARKERS:
+            return True
+        detected = detect_language_heuristic(text, candidates={target})
+        # If detection is inconclusive, keep the record (permissive).
+        return detected is None or detected == target
 
     def _clean_record(self, record: dict[str, str]) -> dict[str, str]:
         """Apply cleaning to all text fields in a record."""

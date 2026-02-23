@@ -105,5 +105,176 @@ def merge(base_model: str, adapter: str, output: str, push: bool, hub_repo: str 
     click.echo(f"Merged model saved to {output}")
 
 
+@main.command()
+@click.option(
+    "--audio-dir",
+    required=True,
+    type=click.Path(exists=True),
+    help="Directory containing audio files.",
+)
+@click.option(
+    "--output",
+    default=None,
+    type=click.Path(),
+    help="Output JSONL path (default: <audio-dir>/transcriptions.jsonl).",
+)
+@click.option(
+    "--config",
+    default=None,
+    type=click.Path(exists=True),
+    help="Whisper config YAML.",
+)
+@click.option("--model-size", default="medium", help="Whisper model size.")
+@click.option("--language", default="tr", help="Target language code.")
+def transcribe(
+    audio_dir: str,
+    output: str | None,
+    config: str | None,
+    model_size: str,
+    language: str,
+) -> None:
+    """Transcribe audio files using Whisper."""
+    from pathlib import Path
+
+    from forge.data.whisper_transcriber import WhisperTranscriber
+
+    if config:
+        import yaml
+
+        with open(config) as f:
+            cfg = yaml.safe_load(f)
+        model_size = cfg.get("model_size", model_size)
+        language = cfg.get("language", language)
+
+    audio_path = Path(audio_dir)
+    output_path = Path(output) if output else audio_path / "transcriptions.jsonl"
+
+    transcriber = WhisperTranscriber(
+        model_size=model_size,
+        language=language,
+    )
+    stats = transcriber.transcribe_directory(audio_path, output_path)
+    click.echo(f"Transcription complete: {stats}")
+
+
+@main.command()
+@click.option(
+    "--model-dir",
+    required=True,
+    type=click.Path(exists=True),
+    help="Merged model directory.",
+)
+@click.option("--hub-repo", required=True, help="HF Hub repo (user/name).")
+@click.option(
+    "--training-config",
+    default=None,
+    type=click.Path(exists=True),
+    help="Training YAML (for model card).",
+)
+@click.option(
+    "--eval-results",
+    default=None,
+    type=click.Path(exists=True),
+    help="Eval results JSON (for model card).",
+)
+@click.option("--language", default="tr", help="Primary language code.")
+def publish(
+    model_dir: str,
+    hub_repo: str,
+    training_config: str | None,
+    eval_results: str | None,
+    language: str,
+) -> None:
+    """Publish a merged model to HuggingFace Hub."""
+    import subprocess
+    import sys
+
+    from forge.utils.runtime_guard import enforce_remote_execution
+
+    enforce_remote_execution("publish")
+
+    cmd = [
+        sys.executable,
+        "scripts/publish_to_hub.py",
+        "--model-dir",
+        model_dir,
+        "--hub-repo",
+        hub_repo,
+        "--language",
+        language,
+    ]
+    if training_config:
+        cmd.extend(["--training-config", training_config])
+    if eval_results:
+        cmd.extend(["--eval-results", eval_results])
+
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        click.echo(f"Publish failed:\n{result.stderr}", err=True)
+        raise SystemExit(1)
+    click.echo(result.stdout)
+    click.echo(f"Model published to https://huggingface.co/{hub_repo}")
+
+
+@main.command()
+@click.option(
+    "--config",
+    required=True,
+    type=click.Path(exists=True),
+    help="Serving config YAML.",
+)
+def serve(config: str) -> None:
+    """Start a vLLM inference server."""
+    from forge.serving.vllm_server import VLLMServer
+    from forge.utils.config import load_serving_config
+    from forge.utils.runtime_guard import enforce_remote_execution
+
+    enforce_remote_execution("serve")
+
+    cfg = load_serving_config(config)
+    server = VLLMServer(cfg)
+    click.echo(f"Starting vLLM server at {server.base_url} ...")
+    server.start()
+
+
+@main.command()
+@click.option("--base-url", required=True, help="vLLM base URL.")
+@click.option("--api-key", default=None, help="API key for the endpoint.")
+@click.option(
+    "--num-requests", default=50, help="Number of requests for benchmark."
+)
+@click.option(
+    "--concurrency", default=5, help="Concurrent request count."
+)
+def benchmark(
+    base_url: str,
+    api_key: str | None,
+    num_requests: int,
+    concurrency: int,
+) -> None:
+    """Benchmark an OpenAI-compatible endpoint."""
+    import subprocess
+    import sys
+
+    cmd = [
+        sys.executable,
+        "scripts/benchmark_openai_endpoint.py",
+        "--base-url",
+        base_url,
+        "--num-requests",
+        str(num_requests),
+        "--concurrency",
+        str(concurrency),
+    ]
+    if api_key:
+        cmd.extend(["--api-key", api_key])
+
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        click.echo(f"Benchmark failed:\n{result.stderr}", err=True)
+        raise SystemExit(1)
+    click.echo(result.stdout)
+
+
 if __name__ == "__main__":
     main()

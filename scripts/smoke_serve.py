@@ -49,8 +49,14 @@ def _validate_models_payload(payload: dict[str, Any], expected_model: str | None
     default=None,
     help="Optional exact model id expected in /v1/models.",
 )
+@click.option(
+    "--api-key",
+    envvar="FORGE_SERVE_API_KEY",
+    default=None,
+    help="Optional API key for Bearer auth (or set FORGE_SERVE_API_KEY).",
+)
 @click.option("--timeout", default=10, show_default=True, help="Request timeout (seconds).")
-def main(base_url: str, expected_model: str | None, timeout: int) -> None:
+def main(base_url: str, expected_model: str | None, api_key: str | None, timeout: int) -> None:
     """Run endpoint smoke checks and exit non-zero on failure."""
     setup_logging("INFO")
     base = base_url.rstrip("/")
@@ -58,13 +64,17 @@ def main(base_url: str, expected_model: str | None, timeout: int) -> None:
     models_url = f"{base}/v1/models"
 
     with httpx.Client(timeout=timeout) as client:
-        health_resp = client.get(health_url)
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        health_resp = client.get(health_url, headers=headers)
         if health_resp.status_code != 200:
             raise click.ClickException(
                 f"Smoke check failed: {health_url} returned {health_resp.status_code}."
             )
 
-        models_resp = client.get(models_url)
+        models_resp = client.get(models_url, headers=headers)
         if models_resp.status_code != 200:
             raise click.ClickException(
                 f"Smoke check failed: {models_url} returned {models_resp.status_code}."

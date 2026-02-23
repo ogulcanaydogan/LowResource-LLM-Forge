@@ -87,11 +87,23 @@ def _load_prompts(path: str | None) -> list[dict[str, Any]]:
     return prompts
 
 
-def _resolve_model(client: httpx.Client, base_url: str, model: str | None) -> str:
+def _resolve_model(
+    client: httpx.Client,
+    base_url: str,
+    model: str | None,
+    headers: dict[str, str],
+) -> str:
     if model:
         return model
 
-    resp = client.get(f"{base_url}/v1/models")
+    try:
+        resp = client.get(f"{base_url}/v1/models", headers=headers)
+    except httpx.RequestError as exc:
+        raise click.ClickException(f"Failed to query {base_url}/v1/models: {exc}") from exc
+    if resp.status_code == 401:
+        raise click.ClickException(
+            "Unauthorized from /v1/models. Provide --api-key or FORGE_SERVE_API_KEY."
+        )
     resp.raise_for_status()
     data = resp.json()
     entries = data.get("data", [])
@@ -112,6 +124,12 @@ def _resolve_model(client: httpx.Client, base_url: str, model: str | None) -> st
     default=None,
     help="Optional JSON prompt list.",
 )
+@click.option(
+    "--api-key",
+    envvar="FORGE_SERVE_API_KEY",
+    default=None,
+    help="Optional API key for Bearer auth (or set FORGE_SERVE_API_KEY).",
+)
 @click.option("--output", required=True, type=click.Path(path_type=str), help="Output JSON path.")
 @click.option("--runs-per-prompt", default=1, show_default=True, type=int)
 @click.option("--timeout-seconds", default=90.0, show_default=True, type=float)
@@ -119,6 +137,7 @@ def main(
     base_url: str,
     model: str | None,
     prompts_file: str | None,
+    api_key: str | None,
     output: str,
     runs_per_prompt: int,
     timeout_seconds: float,
@@ -132,14 +151,21 @@ def main(
     started_at = datetime.now(UTC).isoformat()
 
     results: list[dict[str, Any]] = []
+    headers: dict[str, str] = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
     with httpx.Client(timeout=timeout_seconds) as client:
-        health = client.get(f"{base}/health")
+        try:
+            health = client.get(f"{base}/health", headers=headers)
+        except httpx.RequestError as exc:
+            raise click.ClickException(f"Health check failed for {base}/health: {exc}") from exc
         if health.status_code != 200:
             raise click.ClickException(
                 f"Health check failed: {base}/health => {health.status_code}"
             )
 
-        model_id = _resolve_model(client, base, model)
+        model_id = _resolve_model(client, base, model, headers)
         click.echo(f"Benchmarking {base} with model={model_id}")
 
         for prompt_cfg in prompts:
@@ -155,7 +181,7 @@ def main(
                 completion_text = ""
                 error = ""
                 try:
-                    resp = client.post(f"{base}/v1/chat/completions", json=payload)
+                    resp = client.post(f"{base}/v1/chat/completions", json=payload, headers=headers)
                     status_code = resp.status_code
                     if status_code == 200:
                         body = resp.json()
