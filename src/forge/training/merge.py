@@ -15,7 +15,7 @@ from forge.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-_BAD_TOKENIZER_CLASS = "TokenizersBackend"
+_BAD_TOKENIZER_CLASS = "TokenizersBackend"  # XXX: some Turkcell checkpoints export wrong class
 _SERVING_TOKENIZER_CLASS = "LlamaTokenizer"
 
 

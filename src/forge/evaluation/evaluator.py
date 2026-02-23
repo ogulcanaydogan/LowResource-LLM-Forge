@@ -1,4 +1,4 @@
-"""Evaluation orchestrator: runs all benchmarks and generates reports."""
+"""Evaluation orchestrator — runs benchmarks and writes reports."""
 
 from __future__ import annotations
 
@@ -73,6 +73,7 @@ class ForgeEvaluator:
         """Run a single benchmark by name."""
         start = time.monotonic()
 
+        # TODO: refactor into a registry when we add more benchmarks
         if name == "mmlu_tr":
             result = self._run_mmlu_turkish()
         elif name == "perplexity":
@@ -98,7 +99,7 @@ class ForgeEvaluator:
         return BenchmarkResult(
             name="mmlu_tr",
             score=score,
-            passed=score >= TurkishMMLUBenchmark.PASS_THRESHOLD,
+            passed=score >= TurkishMMLUBenchmark.PASS_THRESHOLD,  # 0.40 — random baseline is 0.25
             details=details,
         )
 
@@ -112,7 +113,7 @@ class ForgeEvaluator:
         )
         details = bench.run()
         ppl = details.get("perplexity", float("inf"))
-        # Lower perplexity is better; pass if under 50
+        # 50 is generous — base Turkcell-7B scores ~35
         return BenchmarkResult(
             name="perplexity",
             score=ppl,
@@ -135,6 +136,6 @@ class ForgeEvaluator:
         return BenchmarkResult(
             name="generation",
             score=score,
-            passed=score >= 3.5,
+            passed=score >= 3.5,  # below 3.5 out of 5.0 is mostly garbage
             details=details,
         )

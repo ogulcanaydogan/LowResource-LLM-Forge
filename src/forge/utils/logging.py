@@ -1,4 +1,4 @@
-"""Structured logging setup using structlog."""
+"""Structured logging via structlog. JSON for prod, console for dev."""
 
 from __future__ import annotations
 
@@ -37,5 +37,5 @@ def setup_logging(level: str = "INFO", json_output: bool = False) -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a named logger instance."""
-    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)  # type: ignore[assignment]
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)  # type: ignore[assignment]  # structlog.get_logger() returns Any
     return logger

@@ -1,4 +1,4 @@
-"""Turkish MMLU benchmark via lm-evaluation-harness."""
+"""Turkish MMLU evaluation via lm-evaluation-harness."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class TurkishMMLUBenchmark:
     """
 
     TASK_NAME = "turkishmmlu"
-    PASS_THRESHOLD = 0.40
+    PASS_THRESHOLD = 0.40  # random baseline is 0.25
 
     def __init__(self, model_path: str, device: str = "cuda") -> None:
         self.model_path = model_path
@@ -38,6 +38,7 @@ class TurkishMMLUBenchmark:
 
         logger.info("running_turkish_mmlu", model=self.model_path)
 
+        # NOTE: dtype=float16 mandatory, lm_eval defaults to fp32 which OOMs
         results = lm_eval.simple_evaluate(
             model="hf",
             model_args=f"pretrained={self.model_path},dtype=float16",
@@ -47,6 +48,7 @@ class TurkishMMLUBenchmark:
         )
 
         task_results = results.get("results", {}).get(self.TASK_NAME, {})
+        # lm_eval >=0.4 changed the key format
         accuracy = task_results.get("acc,none", task_results.get("acc", 0.0))
 
         output = {

@@ -1,4 +1,4 @@
-"""vLLM inference server wrapper with health checks."""
+"""vLLM server wrapper — subprocess management and health polling."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ class VLLMServer:
 
     def start(self, wait: bool = True, timeout: int = 120) -> None:
         """Start vLLM server as a subprocess."""
+        # FIXME: 120s is tight for 7B cold start
         cmd = [
             sys.executable,
             "-m",
@@ -47,7 +48,7 @@ class VLLMServer:
             cmd.extend(["--api-key", self.config.api_key])
 
         logger.info("starting_vllm", model=self.config.model_path, port=self.config.port)
-        self._process = subprocess.Popen(cmd)
+        self._process = subprocess.Popen(cmd)  # stderr goes to parent, intentional
 
         if wait:
             self._wait_for_ready(timeout)
@@ -59,11 +60,12 @@ class VLLMServer:
             if self.health_check():
                 logger.info("vllm_ready", port=self.config.port)
                 return
-            time.sleep(2)
+            time.sleep(2)  # vLLM takes a while to load weights
         logger.warning("vllm_startup_timeout", timeout=timeout)
 
     def health_check(self) -> bool:
         """Check if server is responding."""
+        # 0.0.0.0 can't be health-checked directly
         host = "127.0.0.1" if self.config.host in {"0.0.0.0", "::"} else self.config.host
         try:
             r = httpx.get(

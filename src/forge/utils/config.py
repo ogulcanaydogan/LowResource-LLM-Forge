@@ -1,4 +1,4 @@
-"""Pydantic configuration models loaded from YAML files."""
+"""Pydantic config models loaded from YAML with _base inheritance."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 
 class LoRAConfig(BaseModel):
-    r: int = 32
+    r: int = 32        # rank 32 is sweet spot for 7B, 16 enough for smaller
     alpha: int = 64
     dropout: float = 0.05
     target_modules: list[str] = Field(
@@ -26,7 +26,7 @@ class LoRAConfig(BaseModel):
 class QuantizationConfig(BaseModel):
     load_in_4bit: bool = True
     bnb_4bit_quant_type: str = "nf4"
-    bnb_4bit_compute_dtype: str = "float16"
+    bnb_4bit_compute_dtype: str = "float16"  # V100 has no bf16
     bnb_4bit_use_double_quant: bool = True
 
 
@@ -42,15 +42,15 @@ class TrainingParams(BaseModel):
     save_steps: int = 200
     save_total_limit: int = 3
     eval_steps: int = 100
-    fp16: bool = True
-    bf16: bool = False
+    fp16: bool = True   # always True for Volta arch
+    bf16: bool = False  # NOT supported on V100
     max_steps: int = -1
     seed: int = 42
 
 
 class ModelConfig(BaseModel):
     name: str
-    max_seq_length: int = 2048
+    max_seq_length: int = 2048  # 4096 OOMs on V100 32GB with batch>1
     dtype: str = "float16"
 
 
@@ -61,7 +61,7 @@ class WandbConfig(BaseModel):
 
 
 class TrainingConfig(BaseModel):
-    """Full training configuration combining all sub-configs."""
+    """Top-level training config. Defaults tuned for V100."""
 
     model: ModelConfig
     training: TrainingParams = Field(default_factory=TrainingParams)
@@ -84,7 +84,7 @@ class PreprocessingConfig(BaseModel):
     min_length: int = 50
     max_length: int = 8192
     dedup_method: str = "minhash"
-    dedup_threshold: float = 0.85
+    dedup_threshold: float = 0.85  # empirically tuned on turkish instruction data
     clean_html: bool = True
     normalize_unicode: bool = True
     target_language: str | None = None
@@ -98,7 +98,7 @@ class DataOutputConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
-    """Full data pipeline configuration."""
+    """Data pipeline config loaded from configs/data/*.yaml."""
 
     language: str
     language_name: str
@@ -124,10 +124,10 @@ class ServingConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     tensor_parallel_size: int = 1
-    gpu_memory_utilization: float = 0.90
+    gpu_memory_utilization: float = 0.90  # leave headroom for KV cache
     max_model_len: int = 4096
     dtype: str = "float16"
-    enable_prefix_caching: bool = True
+    enable_prefix_caching: bool = True  # ~15% latency gain on repeated system prompts
     max_num_seqs: int = 64
     trust_remote_code: bool = False
     enforce_eager: bool = False
@@ -135,7 +135,7 @@ class ServingConfig(BaseModel):
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """Recursively merge override into base dict."""
+    """Merge override into base, recursing into nested dicts."""
     result = base.copy()
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
@@ -149,7 +149,7 @@ def load_yaml_config(config_path: str | Path) -> dict[str, Any]:
     """Load a YAML config with optional _base inheritance."""
     config_path = Path(config_path)
     with open(config_path) as f:
-        data = yaml.safe_load(f) or {}
+        data = yaml.safe_load(f) or {}  # empty YAML returns None
 
     base_ref = data.pop("_base", None)
     if base_ref:

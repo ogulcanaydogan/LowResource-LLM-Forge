@@ -135,7 +135,7 @@ class GenerationQualityBenchmark:
                 score += 0.5
 
         # Turkish character presence (0-1.5 points)
-        turkish_chars = set("cCgGiIsSOoUu")
+        turkish_chars = set("cCgGiIsSOoUu")  # crude but catches most Turkish text
         has_turkish = any(c in turkish_chars for c in response)
         if has_turkish:
             score += 1.0

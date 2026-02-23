@@ -1,4 +1,4 @@
-"""CLI entrypoint for the LowResource-LLM-Forge pipeline."""
+"""CLI entrypoint. Heavy imports are lazy to keep --help fast."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def train(config: str, dry_run: bool, max_steps: int) -> None:
 
     cfg = load_training_config(config)
     if max_steps > 0:
-        cfg.training.max_steps = max_steps
+        cfg.training.max_steps = max_steps  # useful for quick sanity checks
 
     trainer = ForgeTrainer(cfg)
     trainer.setup()
@@ -191,6 +191,7 @@ def publish(
 
     from forge.utils.runtime_guard import enforce_remote_execution
 
+    # uploads GBs of weights, don't run from laptop
     enforce_remote_execution("publish")
 
     cmd = [
@@ -229,6 +230,7 @@ def serve(config: str) -> None:
     from forge.utils.config import load_serving_config
     from forge.utils.runtime_guard import enforce_remote_execution
 
+    # vLLM needs GPU, block accidental local runs
     enforce_remote_execution("serve")
 
     cfg = load_serving_config(config)

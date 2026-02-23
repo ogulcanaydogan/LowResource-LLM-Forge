@@ -1,4 +1,4 @@
-"""Build final SFT/DPO datasets from preprocessed data."""
+"""Merge preprocessed JSONL into train/eval splits."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 class DatasetBuilder:
-    """Assemble final training and evaluation datasets from preprocessed files."""
+    """Build final train/eval JSONL from preprocessed sources."""
 
     def __init__(self, config: DataOutputConfig, seed: int = 42) -> None:
         self.config = config
@@ -35,7 +35,7 @@ class DatasetBuilder:
                     try:
                         records.append(json.loads(line))
                     except json.JSONDecodeError:
-                        continue
+                        continue  # malformed lines from upstream, just skip
 
         if not records:
             logger.error("no_records_found")
@@ -44,6 +44,7 @@ class DatasetBuilder:
         random.seed(self.seed)
         random.shuffle(records)
 
+        # at least 1 eval sample even on tiny datasets
         split_idx = max(1, int(len(records) * (1 - self.config.eval_split_ratio)))
         train_records = records[:split_idx]
         eval_records = records[split_idx:]
@@ -65,7 +66,6 @@ class DatasetBuilder:
         return stats
 
     def _write_jsonl(self, path: Path, records: list[dict[str, str]]) -> None:
-        """Write records to a JSONL file."""
         with open(path, "w", encoding="utf-8") as f:
             for record in records:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -81,7 +81,7 @@ class DatasetBuilder:
             path = Path(path_str)
             if path.exists():
                 with open(path, encoding="utf-8") as f:
-                    stats[name] = sum(1 for _ in f)
+                    stats[name] = sum(1 for _ in f)  # count without loading into memory
             else:
                 stats[name] = 0
         return stats
