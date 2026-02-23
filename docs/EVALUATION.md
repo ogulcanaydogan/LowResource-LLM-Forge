@@ -30,10 +30,10 @@ Heuristic scoring on Turkish text generation from 10 diverse prompts.
 
 ```bash
 # Default benchmarks (perplexity + generation)
-uv run python scripts/run_eval.py --model <model-path>
+forge evaluate --model <model-path>
 
 # Single benchmark
-uv run python scripts/run_eval.py --model <model-path> --benchmark perplexity
+forge evaluate --model <model-path> --benchmark perplexity
 
 # Results saved to artifacts/eval/report.md and artifacts/eval/results.json
 ```
@@ -42,9 +42,34 @@ uv run python scripts/run_eval.py --model <model-path> --benchmark perplexity
 
 `mmlu_tr` requires `lm-evaluation-harness` (`lm_eval`) installed in the evaluation environment.
 
+## Comparing Results
+
+Use the benchmark comparison tool to diff two evaluation runs:
+
+```bash
+uv run python scripts/compare_benchmark_results.py \
+    artifacts/eval/results_v1.json artifacts/eval/results_v2.json
+```
+
+## Endpoint Benchmarking
+
+Measure throughput and latency of a deployed model:
+
+```bash
+forge benchmark --base-url http://host:18000/v1 --api-key <key> \
+    --num-requests 100 --concurrency 10
+```
+
 ## Adding Custom Benchmarks
 
 1. Create a new class in `src/forge/evaluation/benchmarks/`
 2. Implement a `run()` method returning `dict[str, Any]`
 3. Register in `ForgeEvaluator._run_<name>()` method
 4. Add to default benchmarks list in `EvalConfig`
+
+## Notebooks
+
+For interactive evaluation analysis:
+
+- `notebooks/01_data_exploration.ipynb` — dataset quality review before training
+- `notebooks/02_training_analysis.ipynb` — eval result visualization post-training

@@ -9,6 +9,8 @@ SPARK_HOST="${SPARK_HOST:-${DEPLOY_HOST:-spark}}"
 SPARK_USER="${SPARK_USER:-${DEPLOY_USER:-weezboo}}"
 SSH_PASSWORD="${SSH_PASSWORD:-}"
 SPARK_SSH_IDENTITY="${SPARK_SSH_IDENTITY:-${DEPLOY_SSH_IDENTITY:-}}"
+VLLM_API_KEY="${VLLM_API_KEY:-${FORGE_SERVE_API_KEY:-}}"
+ALLOW_INSECURE_SERVE="${ALLOW_INSECURE_SERVE:-0}"
 DEPLOY_DIR="/home/${SPARK_USER}/llm-forge"
 SERVICE_NAME="forge-vllm"
 SYSTEMD_USER_DIR="/home/${SPARK_USER}/.config/systemd/user"
@@ -23,6 +25,7 @@ usage() {
     cat <<'EOF'
 Usage:
   bash scripts/deploy_vllm.sh deploy [MODEL_DIR] [CONFIG]
+  bash scripts/deploy_vllm.sh reconfigure [CONFIG]
   bash scripts/deploy_vllm.sh set-active <MODEL_NAME_OR_PATH>
   bash scripts/deploy_vllm.sh start
   bash scripts/deploy_vllm.sh stop
@@ -31,11 +34,12 @@ Usage:
   bash scripts/deploy_vllm.sh logs
 
 Examples:
-  DEPLOY_HOST=spark bash scripts/deploy_vllm.sh deploy
+  DEPLOY_HOST=spark VLLM_API_KEY='forge-***' bash scripts/deploy_vllm.sh deploy
   DEPLOY_HOST=100.80.116.20 DEPLOY_SSH_IDENTITY=~/.ssh/id_github_weez bash scripts/deploy_vllm.sh deploy
   DEPLOY_HOST=10.34.9.233 DEPLOY_USER=weezboo SSH_PASSWORD=... bash scripts/deploy_vllm.sh deploy
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_spark.yaml
   bash scripts/deploy_vllm.sh deploy artifacts/merged/turkcell-7b-turkish-v1 configs/serving/vllm_dgx.yaml
+  VLLM_API_KEY='forge-***' bash scripts/deploy_vllm.sh reconfigure configs/serving/vllm_spark.yaml
   bash scripts/deploy_vllm.sh set-active model-active
   bash scripts/deploy_vllm.sh set-active /home/weezboo/llm-forge/models/turkcell-7b-recovery-b-20260222-193209
   bash scripts/deploy_vllm.sh status
@@ -148,6 +152,8 @@ write_service_file() {
     local enforce_eager="$9"
     local python_bin="${10}"
     local triton_ptxas_path="${11:-}"
+    local max_num_seqs="${12:-64}"
+    local api_key="${13:-}"
 
     local prefix_flag=""
     if [ "${enable_prefix_caching}" = "true" ]; then
@@ -162,6 +168,11 @@ write_service_file() {
     local enforce_eager_flag=""
     if [ "${enforce_eager}" = "true" ]; then
         enforce_eager_flag="--enforce-eager"
+    fi
+
+    local api_key_flag=""
+    if [ -n "${api_key}" ]; then
+        api_key_flag="--api-key ${api_key}"
     fi
 
     local triton_env_line=""
@@ -180,7 +191,7 @@ After=network.target
 Type=simple
 WorkingDirectory=${DEPLOY_DIR}
 ${triton_env_line}
-ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_ACTIVE_LINK} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag} ${enforce_eager_flag}
+ExecStart=${python_bin} -m vllm.entrypoints.openai.api_server --model ${REMOTE_MODEL_ACTIVE_LINK} --host ${host} --port ${port} --tensor-parallel-size ${tensor_parallel} --gpu-memory-utilization ${gpu_memory_utilization} --max-model-len ${max_model_len} --max-num-seqs ${max_num_seqs} --dtype ${dtype} ${prefix_flag} ${trust_remote_code_flag} ${enforce_eager_flag} ${api_key_flag}
 Restart=on-failure
 RestartSec=5
 
@@ -235,6 +246,14 @@ deploy() {
     python_bin="$(read_yaml_value "python_bin" "${REMOTE_PYTHON_DEFAULT}" "${config}")"
     local triton_ptxas_path
     triton_ptxas_path="$(read_yaml_value "triton_ptxas_path" "" "${config}")"
+    local max_num_seqs
+    max_num_seqs="$(read_yaml_value "max_num_seqs" "64" "${config}")"
+
+    if [[ "${host}" != "127.0.0.1" && "${host}" != "localhost" && "${ALLOW_INSECURE_SERVE}" != "1" && -z "${VLLM_API_KEY}" ]]; then
+        echo "Refusing insecure deploy: host=${host} requires VLLM_API_KEY." >&2
+        echo "Set VLLM_API_KEY (or FORGE_SERVE_API_KEY) or ALLOW_INSECURE_SERVE=1 to bypass." >&2
+        exit 1
+    fi
 
     echo "=== Deploying ${SERVICE_NAME} to ${SPARK_USER}@${SPARK_HOST} ==="
     echo "Model dir: ${model_dir}"
@@ -242,6 +261,11 @@ deploy() {
     echo "Remote active link: ${REMOTE_MODEL_ACTIVE_LINK}"
     echo "Config: ${config}"
     echo "Python: ${python_bin}"
+    if [ -n "${VLLM_API_KEY}" ]; then
+        echo "Auth: enabled (api key required)"
+    else
+        echo "Auth: disabled (insecure)"
+    fi
 
     echo "--- Preparing remote directories ---"
     remote_exec "mkdir -p ${remote_model_dir} ${REMOTE_MODELS_DIR} ${DEPLOY_DIR}/configs ${SYSTEMD_USER_DIR}"
@@ -267,7 +291,9 @@ deploy() {
         "${trust_remote_code}" \
         "${enforce_eager}" \
         "${python_bin}" \
-        "${triton_ptxas_path}"
+        "${triton_ptxas_path}" \
+        "${max_num_seqs}" \
+        "${VLLM_API_KEY}"
 
     echo "--- Reloading and starting service ---"
     systemctl_user daemon-reload
@@ -279,6 +305,75 @@ deploy() {
     echo "Deployment complete."
     echo "Health check: curl http://${SPARK_HOST}:${port}/health"
     echo "Logs: bash scripts/deploy_vllm.sh logs"
+}
+
+reconfigure() {
+    local config="${1:-${DEFAULT_CONFIG}}"
+    if [ ! -f "${config}" ]; then
+        echo "Config file not found: ${config}" >&2
+        exit 1
+    fi
+
+    local host
+    host="$(read_yaml_value "host" "0.0.0.0" "${config}")"
+    local port
+    port="$(read_yaml_value "port" "8000" "${config}")"
+    local tensor_parallel
+    tensor_parallel="$(read_yaml_value "tensor_parallel_size" "1" "${config}")"
+    local gpu_memory_utilization
+    gpu_memory_utilization="$(read_yaml_value "gpu_memory_utilization" "0.90" "${config}")"
+    local max_model_len
+    max_model_len="$(read_yaml_value "max_model_len" "4096" "${config}")"
+    local dtype
+    dtype="$(read_yaml_value "dtype" "float16" "${config}")"
+    local enable_prefix_caching
+    enable_prefix_caching="$(read_yaml_value "enable_prefix_caching" "true" "${config}")"
+    local trust_remote_code
+    trust_remote_code="$(read_yaml_value "trust_remote_code" "false" "${config}")"
+    local enforce_eager
+    enforce_eager="$(read_yaml_value "enforce_eager" "false" "${config}")"
+    local python_bin
+    python_bin="$(read_yaml_value "python_bin" "${REMOTE_PYTHON_DEFAULT}" "${config}")"
+    local triton_ptxas_path
+    triton_ptxas_path="$(read_yaml_value "triton_ptxas_path" "" "${config}")"
+    local max_num_seqs
+    max_num_seqs="$(read_yaml_value "max_num_seqs" "64" "${config}")"
+
+    if [[ "${host}" != "127.0.0.1" && "${host}" != "localhost" && "${ALLOW_INSECURE_SERVE}" != "1" && -z "${VLLM_API_KEY}" ]]; then
+        echo "Refusing insecure deploy: host=${host} requires VLLM_API_KEY." >&2
+        echo "Set VLLM_API_KEY (or FORGE_SERVE_API_KEY) or ALLOW_INSECURE_SERVE=1 to bypass." >&2
+        exit 1
+    fi
+
+    echo "=== Reconfiguring ${SERVICE_NAME} on ${SPARK_USER}@${SPARK_HOST} ==="
+    echo "Config: ${config}"
+    echo "Python: ${python_bin}"
+    if [ -n "${VLLM_API_KEY}" ]; then
+        echo "Auth: enabled (api key required)"
+    else
+        echo "Auth: disabled (insecure)"
+    fi
+
+    remote_exec "mkdir -p ${SYSTEMD_USER_DIR}"
+    write_service_file \
+        "${host}" \
+        "${port}" \
+        "${tensor_parallel}" \
+        "${gpu_memory_utilization}" \
+        "${max_model_len}" \
+        "${dtype}" \
+        "${enable_prefix_caching}" \
+        "${trust_remote_code}" \
+        "${enforce_eager}" \
+        "${python_bin}" \
+        "${triton_ptxas_path}" \
+        "${max_num_seqs}" \
+        "${VLLM_API_KEY}"
+
+    systemctl_user daemon-reload
+    systemctl_user enable --now "${SERVICE_NAME}.service"
+    systemctl_user restart "${SERVICE_NAME}.service"
+    systemctl_user --no-pager --lines=25 status "${SERVICE_NAME}.service"
 }
 
 set_active() {
@@ -350,6 +445,7 @@ main() {
 
     case "${action}" in
         deploy) deploy "${1:-${DEFAULT_MODEL_DIR}}" "${2:-${DEFAULT_CONFIG}}" ;;
+        reconfigure) reconfigure "${1:-${DEFAULT_CONFIG}}" ;;
         set-active) set_active "${1:-}" ;;
         start) start ;;
         stop) stop ;;

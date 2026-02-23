@@ -19,6 +19,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
         "scripts/merge_and_push.py",
         "scripts/run_eval.py",
         "scripts/run_serve.py",
+        "scripts/publish_to_hub.py",
+        "scripts/transcribe_audio.py",
     ],
 )
 def test_script_help_runs_without_optional_deps(script_path: str) -> None:

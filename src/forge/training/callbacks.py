@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
+from typing import Any
 
 from forge.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class EarlyStoppingOnPlateau(TrainerCallback):
-    """Stop training when eval loss plateaus for `patience` eval steps."""
+class EarlyStoppingOnPlateau:
+    """Stop training when eval loss plateaus for `patience` eval steps.
+
+    Compatible with the ``transformers.TrainerCallback`` protocol.
+    """
 
     def __init__(self, patience: int = 5, min_delta: float = 0.001) -> None:
         self.patience = patience
@@ -20,9 +23,9 @@ class EarlyStoppingOnPlateau(TrainerCallback):
 
     def on_evaluate(
         self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
+        args: Any,
+        state: Any,
+        control: Any,
         metrics: dict[str, float] | None = None,
         **kwargs: object,
     ) -> None:

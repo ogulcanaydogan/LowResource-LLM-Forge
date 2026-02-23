@@ -23,8 +23,14 @@ from forge.utils.runtime_guard import enforce_remote_execution
 )
 @click.option("--timeout", default=120, show_default=True, help="Health-check timeout in seconds.")
 @click.option("--no-wait", is_flag=True, help="Start server without waiting for health check.")
+@click.option(
+    "--api-key",
+    envvar="FORGE_SERVE_API_KEY",
+    default=None,
+    help="Optional API key for OpenAI endpoint auth (or set FORGE_SERVE_API_KEY).",
+)
 @click.option("--verbose", is_flag=True, help="Enable verbose logging.")
-def main(config: str, timeout: int, no_wait: bool, verbose: bool) -> None:
+def main(config: str, timeout: int, no_wait: bool, api_key: str | None, verbose: bool) -> None:
     """Start vLLM server and keep process attached."""
     setup_logging(level="DEBUG" if verbose else "INFO")
     try:
@@ -33,6 +39,8 @@ def main(config: str, timeout: int, no_wait: bool, verbose: bool) -> None:
         raise click.ClickException(str(exc)) from exc
 
     cfg = load_serving_config(config)
+    if api_key:
+        cfg.api_key = api_key
     server = VLLMServer(cfg)
 
     click.echo(f"Model: {cfg.model_path}")
@@ -55,4 +63,3 @@ def main(config: str, timeout: int, no_wait: bool, verbose: bool) -> None:
 
 if __name__ == "__main__":
     main()
-

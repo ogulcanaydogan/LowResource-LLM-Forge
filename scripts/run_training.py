@@ -18,8 +18,20 @@ from forge.utils.runtime_guard import enforce_remote_execution
 @click.option("--config", required=True, type=click.Path(exists=True), help="Model config YAML.")
 @click.option("--dry-run", is_flag=True, help="Load model and LoRA without training.")
 @click.option("--max-steps", default=-1, help="Override max training steps (-1 = use epochs).")
+@click.option(
+    "--resume-from",
+    default=None,
+    type=click.Path(exists=True),
+    help="Optional checkpoint directory to resume from.",
+)
 @click.option("--verbose", is_flag=True, help="Enable verbose logging.")
-def main(config: str, dry_run: bool, max_steps: int, verbose: bool) -> None:
+def main(
+    config: str,
+    dry_run: bool,
+    max_steps: int,
+    resume_from: str | None,
+    verbose: bool,
+) -> None:
     """Run QLoRA fine-tuning on a low-resource language model."""
     setup_logging(level="DEBUG" if verbose else "INFO")
     try:
@@ -35,6 +47,8 @@ def main(config: str, dry_run: bool, max_steps: int, verbose: bool) -> None:
     if max_steps > 0:
         cfg.training.max_steps = max_steps
         click.echo(f"Max steps override: {max_steps}")
+    if resume_from:
+        click.echo(f"Resume from checkpoint: {resume_from}")
 
     from forge.training.trainer import ForgeTrainer
 
@@ -49,7 +63,7 @@ def main(config: str, dry_run: bool, max_steps: int, verbose: bool) -> None:
         return
 
     click.echo("\nStarting training...")
-    output_path = trainer.train()
+    output_path = trainer.train(resume_from_checkpoint=resume_from)
     click.echo(f"\nTraining complete. Adapter saved to {output_path}")
 
 

@@ -34,6 +34,7 @@ jobs:
         env:
           FORGE_SERVE_BASE_URL: ${{ secrets.FORGE_SERVE_BASE_URL }}
           FORGE_SERVE_EXPECT_MODEL: ${{ secrets.FORGE_SERVE_EXPECT_MODEL }}
+          FORGE_SERVE_API_KEY: ${{ secrets.FORGE_SERVE_API_KEY }}
         run: |
           if [ "${RUNNER_ENVIRONMENT:-}" != "self-hosted" ]; then
             echo "Non self-hosted runner detected; skipping serving smoke check."

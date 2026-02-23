@@ -87,6 +87,7 @@ class PreprocessingConfig(BaseModel):
     dedup_threshold: float = 0.85
     clean_html: bool = True
     normalize_unicode: bool = True
+    target_language: str | None = None
 
 
 class DataOutputConfig(BaseModel):
@@ -130,6 +131,7 @@ class ServingConfig(BaseModel):
     max_num_seqs: int = 64
     trust_remote_code: bool = False
     enforce_eager: bool = False
+    api_key: str | None = None
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

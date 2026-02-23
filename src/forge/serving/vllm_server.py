@@ -33,6 +33,7 @@ class VLLMServer:
             "--tensor-parallel-size", str(self.config.tensor_parallel_size),
             "--gpu-memory-utilization", str(self.config.gpu_memory_utilization),
             "--max-model-len", str(self.config.max_model_len),
+            "--max-num-seqs", str(self.config.max_num_seqs),
             "--dtype", self.config.dtype,
         ]
 
@@ -42,6 +43,8 @@ class VLLMServer:
             cmd.append("--trust-remote-code")
         if self.config.enforce_eager:
             cmd.append("--enforce-eager")
+        if self.config.api_key:
+            cmd.extend(["--api-key", self.config.api_key])
 
         logger.info("starting_vllm", model=self.config.model_path, port=self.config.port)
         self._process = subprocess.Popen(cmd)

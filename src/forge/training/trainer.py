@@ -171,7 +171,7 @@ class ForgeTrainer:
 
         return prompt
 
-    def train(self) -> Path:
+    def train(self, resume_from_checkpoint: str | None = None) -> Path:
         """Run training. Returns path to saved adapter."""
         from trl import SFTConfig, SFTTrainer
 
@@ -200,15 +200,36 @@ class ForgeTrainer:
         effective_bf16 = self.config.training.bf16
         if not self._use_unsloth and (effective_fp16 or effective_bf16):
             # PEFT fallback can hit AMP scaler dtype issues on some V100/torch stacks.
-            # Disable mixed precision in fallback mode for runtime stability.
-            logger.warning(
-                "mixed_precision_disabled_peft_fallback",
-                reason="prevent amp scaler dtype mismatch on fallback backend",
-                requested_fp16=effective_fp16,
-                requested_bf16=effective_bf16,
-            )
-            effective_fp16 = False
-            effective_bf16 = False
+            # Keep mixed precision enabled only on Ampere+ GPUs (compute capability >= 8.0).
+            allow_mixed_precision = False
+            device_capability = "unknown"
+            try:
+                import torch
+
+                if torch.cuda.is_available():
+                    major, minor = torch.cuda.get_device_capability(0)
+                    device_capability = f"{major}.{minor}"
+                    allow_mixed_precision = major >= 8
+            except Exception:  # noqa: BLE001
+                allow_mixed_precision = False
+
+            if not allow_mixed_precision:
+                logger.warning(
+                    "mixed_precision_disabled_peft_fallback",
+                    reason="prevent amp scaler dtype mismatch on non-Ampere fallback backend",
+                    device_capability=device_capability,
+                    requested_fp16=effective_fp16,
+                    requested_bf16=effective_bf16,
+                )
+                effective_fp16 = False
+                effective_bf16 = False
+            else:
+                logger.info(
+                    "mixed_precision_enabled_peft_fallback",
+                    device_capability=device_capability,
+                    fp16=effective_fp16,
+                    bf16=effective_bf16,
+                )
 
         training_args = SFTConfig(
             output_dir=str(output_dir),
@@ -244,7 +265,9 @@ class ForgeTrainer:
         )
 
         logger.info("training_started", output_dir=str(output_dir))
-        trainer.train()
+        if resume_from_checkpoint:
+            logger.info("training_resuming", checkpoint=resume_from_checkpoint)
+        trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
         # Save final adapter
         final_path = output_dir / "final"
