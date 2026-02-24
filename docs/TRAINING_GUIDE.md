@@ -133,3 +133,9 @@ For interactive training analysis:
 **Unsloth not found**: Install training extras with `uv sync --extra train`. Pipeline falls back to standard PEFT automatically when Unsloth is unavailable.
 
 **Poor Turkish output**: Check tokenizer coverage — models not trained on Turkish may tokenize inefficiently, reducing effective context length.
+
+## After Current Run Completes
+
+The post-completion improvement backlog (stability, data expansion, A100 recipe tuning, and serving performance) is tracked in:
+
+- `docs/ROADMAP.md`
