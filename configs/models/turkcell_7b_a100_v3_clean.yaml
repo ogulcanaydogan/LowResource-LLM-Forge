@@ -1,0 +1,25 @@
+# Turkcell-7B A100 stable profile (post-NaN recovery).
+_base: "./turkcell_7b.yaml"
+
+model:
+  max_seq_length: 2048
+
+data:
+  train_path: "data/processed/turkish_sft_v3_clean.jsonl"
+  eval_path: "data/processed/turkish_eval.jsonl"
+
+training:
+  num_epochs: 1
+  learning_rate: 5.0e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 2
+  eval_steps: 500
+  save_steps: 500
+  fp16: false
+  bf16: true
+
+wandb:
+  run_name: "turkcell-7b-sft-v3-a100-bf16-stable"

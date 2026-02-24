@@ -1,4 +1,4 @@
-.PHONY: help dev test lint typecheck qa train eval serve smoke-serve download-data transcribe publish benchmark ops-dashboard
+.PHONY: help dev test lint typecheck qa train eval serve smoke-serve download-data transcribe publish benchmark manifest post-train set-wandb ops-dashboard
 
 .DEFAULT_GOAL := help
 
@@ -81,6 +81,22 @@ benchmark: ## Benchmark endpoint (BASE_URL=<url> [API_KEY=<key>])
 	if [ -n "$(NUM_REQUESTS)" ]; then cmd="$$cmd --num-requests $(NUM_REQUESTS)"; fi; \
 	if [ -n "$(CONCURRENCY)" ]; then cmd="$$cmd --concurrency $(CONCURRENCY)"; fi; \
 	eval "$$cmd"
+
+manifest: ## Generate training manifest (TRAIN_CONFIG/RUN_DIR/LOG_FILE)
+	@if [ -z "$(RUN_DIR)" ] || [ -z "$(LOG_FILE)" ]; then \
+		echo "Usage: make manifest TRAIN_CONFIG=<yaml> RUN_DIR=<run_dir> LOG_FILE=<train_log>"; \
+		exit 1; \
+	fi
+	uv run python scripts/generate_training_manifest.py \
+		--config "$(TRAIN_CONFIG)" \
+		--run-dir "$(RUN_DIR)" \
+		--log-file "$(LOG_FILE)"
+
+post-train: ## Run post-training pipeline (eval -> merge -> optional smoke)
+	bash scripts/post_training_pipeline.sh
+
+set-wandb: ## Set WANDB_API_KEY for training services
+	bash scripts/set_wandb_key.sh
 
 ops-dashboard: ## Launch runtime ops dashboard
 	bash scripts/runtime_dashboard.sh

@@ -315,6 +315,22 @@ All commands support `--help` for full option documentation. Run `make help` to 
 
 ---
 
+## Post-Completion Roadmap
+
+After the current priority training run is completed, the next improvement work is tracked in:
+
+- `docs/ROADMAP.md`
+
+Roadmap phases:
+
+1. Stability hardening (NaN guards, fail-fast, auto-resume)
+2. Turkish data expansion and quality filtering
+3. A100 training recipe optimization
+4. Serving throughput and latency optimization
+5. Evaluation depth and release governance
+
+---
+
 ## Notebooks
 
 Interactive Jupyter notebooks for exploration and analysis:
