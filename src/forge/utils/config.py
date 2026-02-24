@@ -38,6 +38,7 @@ class TrainingParams(BaseModel):
     warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"
     weight_decay: float = 0.01
+    max_grad_norm: float = 1.0
     logging_steps: int = 10
     save_steps: int = 200
     save_total_limit: int = 3

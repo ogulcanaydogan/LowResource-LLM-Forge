@@ -8,12 +8,16 @@ from typing import Any, Literal, cast
 
 from datasets import load_dataset
 
+from forge.training.callbacks import EarlyStoppingOnPlateau, NaNGuardCallback
 from forge.utils.config import TrainingConfig
 from forge.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
+_EARLY_STOPPING_PATIENCE = 5
+_EARLY_STOPPING_MIN_DELTA = 0.001
+_NAN_GUARD_CONSECUTIVE_LIMIT = 5
 
 
 def _is_truthy(value: str | None) -> bool:
@@ -247,6 +251,7 @@ class ForgeTrainer:
             warmup_ratio=self.config.training.warmup_ratio,
             lr_scheduler_type=self.config.training.lr_scheduler_type,
             weight_decay=self.config.training.weight_decay,
+            max_grad_norm=self.config.training.max_grad_norm,
             seed=self.config.training.seed,
             max_steps=self.config.training.max_steps,
             report_to="wandb" if wandb_enabled else "none",
@@ -262,6 +267,23 @@ class ForgeTrainer:
             eval_dataset=eval_dataset,
             args=training_args,
             formatting_func=self._format_prompt,
+        )
+        trainer.add_callback(
+            EarlyStoppingOnPlateau(
+                patience=_EARLY_STOPPING_PATIENCE,
+                min_delta=_EARLY_STOPPING_MIN_DELTA,
+            )
+        )
+        trainer.add_callback(
+            NaNGuardCallback(
+                consecutive_limit=_NAN_GUARD_CONSECUTIVE_LIMIT,
+            )
+        )
+        logger.info(
+            "training_callbacks_enabled",
+            early_stopping_patience=_EARLY_STOPPING_PATIENCE,
+            early_stopping_min_delta=_EARLY_STOPPING_MIN_DELTA,
+            nan_guard_consecutive_limit=_NAN_GUARD_CONSECUTIVE_LIMIT,
         )
 
         logger.info("training_started", output_dir=str(output_dir))

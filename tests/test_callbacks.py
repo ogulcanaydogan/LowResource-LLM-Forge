@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from forge.training.callbacks import EarlyStoppingOnPlateau
+from forge.training.callbacks import EarlyStoppingOnPlateau, NaNGuardCallback
 
 
 def _make_state(global_step: int = 100) -> MagicMock:
@@ -104,3 +104,35 @@ def test_min_delta_sensitivity() -> None:
     cb.on_evaluate(args, state, control, metrics={"eval_loss": 0.92})
 
     assert control.should_training_stop is True
+
+
+def test_nan_guard_stops_after_consecutive_hits() -> None:
+    """NaN guard should stop training after repeated NaN metrics."""
+    cb = NaNGuardCallback(consecutive_limit=3)
+    args = _make_args()
+    state = _make_state()
+    control = _make_control()
+
+    cb.on_log(args, state, control, logs={"loss": 1.2, "grad_norm": 0.5})
+    assert control.should_training_stop is False
+
+    cb.on_log(args, state, control, logs={"loss": "nan"})
+    cb.on_log(args, state, control, logs={"grad_norm": float("nan")})
+    assert control.should_training_stop is False
+
+    cb.on_evaluate(args, state, control, metrics={"eval_loss": "nan"})
+    assert control.should_training_stop is True
+
+
+def test_nan_guard_resets_after_finite_metric() -> None:
+    """A finite metric should reset NaN guard consecutive counter."""
+    cb = NaNGuardCallback(consecutive_limit=2)
+    args = _make_args()
+    state = _make_state()
+    control = _make_control()
+
+    cb.on_log(args, state, control, logs={"loss": "nan"})
+    cb.on_log(args, state, control, logs={"loss": 0.9})
+    cb.on_log(args, state, control, logs={"loss": "nan"})
+
+    assert control.should_training_stop is False

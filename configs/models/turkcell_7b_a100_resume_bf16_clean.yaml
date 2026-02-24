@@ -1,0 +1,15 @@
+# A100 80GB optimized bf16 resume profile from checkpoint-800.
+# Uses a dedicated run name and save/eval interval for long remote runs.
+
+_base: "./turkcell_7b.yaml"
+
+training:
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 2
+  eval_steps: 1000
+  save_steps: 1000
+  fp16: false
+  bf16: true
+
+wandb:
+  run_name: "turkcell-7b-sft-v1-a100-bf16-r2"
