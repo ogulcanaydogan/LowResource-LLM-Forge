@@ -51,7 +51,12 @@ while true; do
 
     nan_count="0"
     if [[ -f "$LOG_FILE" ]]; then
-        nan_count="$(grep -a -i -c nan "$LOG_FILE" || true)"
+        # Count only real NaN/Inf metric values and explicit NaN guard events.
+        metric_nan_count="$(grep -a -E -i "'(loss|grad_norm|eval_loss)':[[:space:]]*'?(nan|inf)'?" "$LOG_FILE" | wc -l | tr -d '[:space:]' || true)"
+        guard_nan_count="$(grep -a -E -c "nan_guard_detected|nan_guard_stopping_training" "$LOG_FILE" || true)"
+        metric_nan_count="${metric_nan_count:-0}"
+        guard_nan_count="${guard_nan_count:-0}"
+        nan_count=$((metric_nan_count + guard_nan_count))
     fi
 
     gpu_line="$(nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader | head -n1 2>/dev/null || echo unknown)"
