@@ -1,0 +1,18 @@
+[Unit]
+Description=LowResource-LLM-Forge A100 Training
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/LowResource-LLM-Forge
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-%h/.config/forge/training.env
+ExecStart=%h/projects/LowResource-LLM-Forge/scripts/start_a100_training.sh
+Restart=on-failure
+RestartSec=20
+StandardOutput=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_a100_bf16_v4_recovery.log
+StandardError=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_a100_bf16_v4_recovery.log
+
+[Install]
+WantedBy=default.target
