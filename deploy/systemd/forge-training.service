@@ -11,8 +11,8 @@ EnvironmentFile=-%h/.config/forge/training.env
 ExecStart=%h/projects/LowResource-LLM-Forge/scripts/start_a100_training.sh
 Restart=on-failure
 RestartSec=20
-StandardOutput=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_a100_bf16_v4_recovery.log
-StandardError=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_a100_bf16_v4_recovery.log
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=default.target

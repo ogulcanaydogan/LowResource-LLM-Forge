@@ -5,7 +5,10 @@ PROJECT_ROOT="${PROJECT_ROOT:-$HOME/projects/LowResource-LLM-Forge}"
 cd "$PROJECT_ROOT"
 
 TRAIN_CONFIG="${TRAIN_CONFIG:-configs/models/turkcell_7b_a100_v4_recovery.yaml}"
-TRAIN_RUN_DIR="${TRAIN_RUN_DIR:-artifacts/training/turkcell-7b-sft-v4-a100-bf16-recovery}"
+CONFIG_BASENAME="$(basename "$TRAIN_CONFIG")"
+CONFIG_SLUG="${CONFIG_BASENAME%.*}"
+TRAIN_RUN_DIR="${TRAIN_RUN_DIR:-artifacts/training/${CONFIG_SLUG}}"
+TRAIN_LOG="${TRAIN_LOG:-artifacts/logs/training_${CONFIG_SLUG}.log}"
 BOOTSTRAP_CHECKPOINT="${BOOTSTRAP_CHECKPOINT:-}"
 ENABLE_RESUME="${ENABLE_RESUME:-0}"
 HF_HOME_DIR="${HF_HOME_DIR:-$PROJECT_ROOT/.hf_cache}"
@@ -14,7 +17,16 @@ HF_HUB_CACHE_DIR="${HF_HUB_CACHE_DIR:-$HF_HOME_DIR/hub}"
 UV_BIN="${UV_BIN:-$HOME/.local/bin/uv}"
 REQUIRE_WANDB="${REQUIRE_WANDB:-1}"
 
-mkdir -p "$(dirname "$TRAIN_RUN_DIR")" "$HF_HOME_DIR" "$HF_DATASETS_CACHE_DIR" "$HF_HUB_CACHE_DIR" artifacts/logs
+mkdir -p \
+    "$(dirname "$TRAIN_RUN_DIR")" \
+    "$(dirname "$TRAIN_LOG")" \
+    "$HF_HOME_DIR" \
+    "$HF_DATASETS_CACHE_DIR" \
+    "$HF_HUB_CACHE_DIR" \
+    artifacts/logs
+
+# Keep a durable per-run log even when systemd unit output targets change.
+exec > >(tee -a "$TRAIN_LOG") 2>&1
 
 if [[ ! -x "$UV_BIN" ]]; then
     echo "UV executable not found: $UV_BIN" >&2
@@ -51,7 +63,9 @@ fi
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] forge-training-start"
 echo "project_root=$PROJECT_ROOT"
 echo "train_config=$TRAIN_CONFIG"
+echo "config_slug=$CONFIG_SLUG"
 echo "train_run_dir=$TRAIN_RUN_DIR"
+echo "train_log=$TRAIN_LOG"
 echo "resume_from=${resume_from:-none}"
 echo "enable_resume=$ENABLE_RESUME"
 echo "require_wandb=$REQUIRE_WANDB"

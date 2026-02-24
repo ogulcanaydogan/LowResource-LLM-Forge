@@ -7,11 +7,12 @@ Wants=forge-training.service
 Type=simple
 WorkingDirectory=%h/projects/LowResource-LLM-Forge
 Environment=PYTHONUNBUFFERED=1
-ExecStart=%h/projects/LowResource-LLM-Forge/scripts/training_watchdog.py --service forge-training.service --log-file artifacts/logs/training_a100_bf16_v4_recovery.log --state-file artifacts/logs/training_watchdog_state_v4.json --status-file artifacts/logs/training_watchdog_status_a100_v4.txt --target-steps 8601 --poll-seconds 60 --nan-consecutive-limit 3 --stall-seconds 5400
+EnvironmentFile=-%h/.config/forge/training.env
+ExecStart=%h/projects/LowResource-LLM-Forge/scripts/training_watchdog.py --service forge-training.service --nan-consecutive-limit 3
 Restart=always
 RestartSec=10
-StandardOutput=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_watchdog_v4.log
-StandardError=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_watchdog_v4.log
+StandardOutput=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_watchdog.log
+StandardError=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_watchdog.log
 
 [Install]
 WantedBy=default.target

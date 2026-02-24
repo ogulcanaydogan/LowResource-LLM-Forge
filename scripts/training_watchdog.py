@@ -29,16 +29,45 @@ class WatchdogState:
     last_step_change_ts: float = 0.0
 
 
+def _config_slug() -> str:
+    train_config = os.getenv("TRAIN_CONFIG", "configs/models/turkcell_7b_a100_v4_recovery.yaml")
+    return Path(train_config).stem
+
+
+def _int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 def parse_args() -> argparse.Namespace:
+    slug = _config_slug()
+    default_log_file = os.getenv("TRAIN_LOG", f"artifacts/logs/training_{slug}.log")
+    default_state_file = os.getenv(
+        "TRAIN_WATCHDOG_STATE_FILE",
+        f"artifacts/logs/training_watchdog_state_{slug}.json",
+    )
+    default_status_file = os.getenv(
+        "TRAIN_WATCHDOG_STATUS_FILE",
+        f"artifacts/logs/training_watchdog_status_{slug}.txt",
+    )
+    default_target_steps = _int_env("TARGET_STEPS", 8601)
+    default_poll_seconds = _int_env("WATCHDOG_POLL_SECONDS", 60)
+    default_stall_seconds = _int_env("WATCHDOG_STALL_SECONDS", 5400)
+
     parser = argparse.ArgumentParser(description="Monitor training and auto-restart on failures.")
     parser.add_argument("--service", default="forge-training.service")
-    parser.add_argument("--log-file", default="artifacts/logs/training_a100_bf16_v4_recovery.log")
-    parser.add_argument("--state-file", default="artifacts/logs/training_watchdog_state.json")
-    parser.add_argument("--status-file", default="artifacts/logs/training_watchdog_status_a100.txt")
-    parser.add_argument("--target-steps", type=int, default=8601)
-    parser.add_argument("--poll-seconds", type=int, default=60)
+    parser.add_argument("--log-file", default=default_log_file)
+    parser.add_argument("--state-file", default=default_state_file)
+    parser.add_argument("--status-file", default=default_status_file)
+    parser.add_argument("--target-steps", type=int, default=default_target_steps)
+    parser.add_argument("--poll-seconds", type=int, default=default_poll_seconds)
     parser.add_argument("--nan-consecutive-limit", type=int, default=3)
-    parser.add_argument("--stall-seconds", type=int, default=5400)
+    parser.add_argument("--stall-seconds", type=int, default=default_stall_seconds)
     parser.add_argument("--max-read-bytes", type=int, default=2_000_000)
     return parser.parse_args()
 

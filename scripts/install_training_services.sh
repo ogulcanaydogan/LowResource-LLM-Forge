@@ -17,8 +17,11 @@ WANDB_API_KEY=
 # Optional overrides:
 # TRAIN_CONFIG=configs/models/turkcell_7b_a100_v4_recovery.yaml
 # TRAIN_RUN_DIR=artifacts/training/turkcell-7b-sft-v4-a100-bf16-recovery
+# TRAIN_LOG=artifacts/logs/training_turkcell_7b_a100_v4_recovery.log
+# TARGET_STEPS=8601
 # ENABLE_RESUME=0
 # REQUIRE_WANDB=1
+# BOOTSTRAP_CHECKPOINT=
 EOF
     chmod 600 "$FORGE_ENV_FILE"
 fi
@@ -43,7 +46,10 @@ systemctl --user enable forge-training.service
 systemctl --user enable forge-training-watchdog.service
 systemctl --user enable forge-training-monitor.service
 
-if grep -qE '^WANDB_API_KEY=.+$' "$FORGE_ENV_FILE"; then
+require_wandb="$(grep -E '^REQUIRE_WANDB=' "$FORGE_ENV_FILE" | tail -n 1 | cut -d '=' -f2 | tr -d '[:space:]' || true)"
+require_wandb="${require_wandb:-1}"
+
+if [[ "$require_wandb" == "0" ]] || grep -qE '^WANDB_API_KEY=.+$' "$FORGE_ENV_FILE"; then
     systemctl --user restart forge-training.service
     systemctl --user restart forge-training-watchdog.service
     systemctl --user restart forge-training-monitor.service

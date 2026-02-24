@@ -46,6 +46,7 @@ class TrainingParams(BaseModel):
     fp16: bool = True   # always True for Volta arch
     bf16: bool = False  # NOT supported on V100
     max_steps: int = -1
+    adapter_init_path: str | None = None
     seed: int = 42
 
 

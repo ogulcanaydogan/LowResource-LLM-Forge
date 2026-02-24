@@ -4,9 +4,11 @@ set -euo pipefail
 cd /home/weezboo/projects/LowResource-LLM-Forge
 
 TRAIN_CONFIG="${TRAIN_CONFIG:-configs/models/turkcell_7b_a100_v4_recovery.yaml}"
-LOG_FILE="${LOG_FILE:-${TRAIN_LOG:-artifacts/logs/training_a100_bf16_v4_recovery.log}}"
+CONFIG_BASENAME="$(basename "$TRAIN_CONFIG")"
+CONFIG_SLUG="${CONFIG_BASENAME%.*}"
+LOG_FILE="${LOG_FILE:-${TRAIN_LOG:-artifacts/logs/training_${CONFIG_SLUG}.log}}"
 STATUS_FILE="${STATUS_FILE:-artifacts/logs/training_monitor_status_a100.txt}"
-ETA_STATE_FILE="${ETA_STATE_FILE:-artifacts/logs/training_monitor_eta_state_a100.env}"
+ETA_STATE_FILE="${ETA_STATE_FILE:-artifacts/logs/training_monitor_eta_state_${CONFIG_SLUG}.env}"
 TARGET_STEPS="${TARGET_STEPS:-8601}"
 PATTERN="${PATTERN:-run_training.py --config ${TRAIN_CONFIG}}"
 SLEEP_SECS="${SLEEP_SECS:-60}"

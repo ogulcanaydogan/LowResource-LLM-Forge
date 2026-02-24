@@ -78,7 +78,7 @@ class ForgeTrainer:
     def _setup_peft(self) -> None:
         """Load model via standard PEFT (fallback when Unsloth unavailable)."""
         import torch
-        from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+        from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
         logger.info(
@@ -110,24 +110,35 @@ class ForgeTrainer:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.model = prepare_model_for_kbit_training(self.model)
-
-        lora_bias = self.config.lora.bias.lower()
-        valid_lora_bias = {"none", "all", "lora_only"}
-        if lora_bias not in valid_lora_bias:
-            raise ValueError(
-                f"Invalid LoRA bias '{self.config.lora.bias}'. "
-                "Expected one of: none, all, lora_only."
+        adapter_init_path = self.config.training.adapter_init_path
+        if adapter_init_path:
+            adapter_path = Path(adapter_init_path).expanduser()
+            if not adapter_path.exists():
+                raise FileNotFoundError(f"Adapter init path not found: {adapter_path}")
+            logger.info("loading_adapter_init", path=str(adapter_path))
+            self.model = PeftModel.from_pretrained(
+                self.model,
+                str(adapter_path),
+                is_trainable=True,
             )
+        else:
+            lora_bias = self.config.lora.bias.lower()
+            valid_lora_bias = {"none", "all", "lora_only"}
+            if lora_bias not in valid_lora_bias:
+                raise ValueError(
+                    f"Invalid LoRA bias '{self.config.lora.bias}'. "
+                    "Expected one of: none, all, lora_only."
+                )
 
-        lora_config = LoraConfig(
-            r=self.config.lora.r,
-            lora_alpha=self.config.lora.alpha,
-            lora_dropout=self.config.lora.dropout,
-            target_modules=self.config.lora.target_modules,
-            bias=cast(Literal["none", "all", "lora_only"], lora_bias),
-            task_type=self.config.lora.task_type,
-        )
-        self.model = get_peft_model(self.model, lora_config)
+            lora_config = LoraConfig(
+                r=self.config.lora.r,
+                lora_alpha=self.config.lora.alpha,
+                lora_dropout=self.config.lora.dropout,
+                target_modules=self.config.lora.target_modules,
+                bias=cast(Literal["none", "all", "lora_only"], lora_bias),
+                task_type=self.config.lora.task_type,
+            )
+            self.model = get_peft_model(self.model, lora_config)
 
         logger.info("model_loaded_peft", trainable_params=self._count_trainable_params())
 
