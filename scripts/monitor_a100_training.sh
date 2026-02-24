@@ -3,11 +3,12 @@ set -euo pipefail
 
 cd /home/weezboo/projects/LowResource-LLM-Forge
 
-LOG_FILE="${LOG_FILE:-artifacts/logs/training_a100_bf16_v4_recovery.log}"
+TRAIN_CONFIG="${TRAIN_CONFIG:-configs/models/turkcell_7b_a100_v4_recovery.yaml}"
+LOG_FILE="${LOG_FILE:-${TRAIN_LOG:-artifacts/logs/training_a100_bf16_v4_recovery.log}}"
 STATUS_FILE="${STATUS_FILE:-artifacts/logs/training_monitor_status_a100.txt}"
 ETA_STATE_FILE="${ETA_STATE_FILE:-artifacts/logs/training_monitor_eta_state_a100.env}"
 TARGET_STEPS="${TARGET_STEPS:-8601}"
-PATTERN="${PATTERN:-run_training.py --config configs/models/turkcell_7b_a100_v4_recovery.yaml}"
+PATTERN="${PATTERN:-run_training.py --config ${TRAIN_CONFIG}}"
 SLEEP_SECS="${SLEEP_SECS:-60}"
 
 mkdir -p artifacts/logs
@@ -27,7 +28,7 @@ while true; do
     now_epoch="$(date -u +%s)"
 
     running="no"
-    if pgrep -f "$PATTERN" >/dev/null 2>&1; then
+    if pgrep -f "$PATTERN" >/dev/null 2>&1 || pgrep -f "scripts/run_training.py" >/dev/null 2>&1; then
         running="yes"
     fi
 
