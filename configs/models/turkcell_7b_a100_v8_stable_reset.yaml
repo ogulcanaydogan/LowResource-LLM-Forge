@@ -1,0 +1,17 @@
+# Turkcell-7B A100 stable-reset profile.
+# Resume from v7 checkpoint weights via adapter_init_path only.
+# Do not resume optimizer/scheduler state.
+_base: "./turkcell_7b_a100_v7_balanced_stable.yaml"
+
+training:
+  learning_rate: 5.0e-6
+  max_grad_norm: 0.3
+  warmup_ratio: 0.10
+  eval_steps: 500
+  save_steps: 250
+  fp16: false
+  bf16: true
+  adapter_init_path: "artifacts/training/turkcell-7b-sft-v7-a100-bf16-balanced-stable/checkpoint-1000"
+
+wandb:
+  run_name: "turkcell-7b-sft-v8-a100-bf16-stable-reset"

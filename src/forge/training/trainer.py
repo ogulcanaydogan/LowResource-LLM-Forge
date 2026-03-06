@@ -8,12 +8,16 @@ from typing import Any, Literal, cast
 
 from datasets import load_dataset
 
+from forge.training.callbacks import EarlyStoppingOnPlateau, NaNGuardCallback
 from forge.utils.config import TrainingConfig
 from forge.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
+_EARLY_STOPPING_PATIENCE = 5
+_EARLY_STOPPING_MIN_DELTA = 0.001
+_NAN_GUARD_CONSECUTIVE_LIMIT = 5
 
 
 def _is_truthy(value: str | None) -> bool:
@@ -74,7 +78,7 @@ class ForgeTrainer:
     def _setup_peft(self) -> None:
         """Load model via standard PEFT (fallback when Unsloth unavailable)."""
         import torch
-        from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+        from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
         logger.info(
@@ -106,24 +110,35 @@ class ForgeTrainer:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.model = prepare_model_for_kbit_training(self.model)
-
-        lora_bias = self.config.lora.bias.lower()
-        valid_lora_bias = {"none", "all", "lora_only"}
-        if lora_bias not in valid_lora_bias:
-            raise ValueError(
-                f"Invalid LoRA bias '{self.config.lora.bias}'. "
-                "Expected one of: none, all, lora_only."
+        adapter_init_path = self.config.training.adapter_init_path
+        if adapter_init_path:
+            adapter_path = Path(adapter_init_path).expanduser()
+            if not adapter_path.exists():
+                raise FileNotFoundError(f"Adapter init path not found: {adapter_path}")
+            logger.info("loading_adapter_init", path=str(adapter_path))
+            self.model = PeftModel.from_pretrained(
+                self.model,
+                str(adapter_path),
+                is_trainable=True,
             )
+        else:
+            lora_bias = self.config.lora.bias.lower()
+            valid_lora_bias = {"none", "all", "lora_only"}
+            if lora_bias not in valid_lora_bias:
+                raise ValueError(
+                    f"Invalid LoRA bias '{self.config.lora.bias}'. "
+                    "Expected one of: none, all, lora_only."
+                )
 
-        lora_config = LoraConfig(
-            r=self.config.lora.r,
-            lora_alpha=self.config.lora.alpha,
-            lora_dropout=self.config.lora.dropout,
-            target_modules=self.config.lora.target_modules,
-            bias=cast(Literal["none", "all", "lora_only"], lora_bias),
-            task_type=self.config.lora.task_type,
-        )
-        self.model = get_peft_model(self.model, lora_config)
+            lora_config = LoraConfig(
+                r=self.config.lora.r,
+                lora_alpha=self.config.lora.alpha,
+                lora_dropout=self.config.lora.dropout,
+                target_modules=self.config.lora.target_modules,
+                bias=cast(Literal["none", "all", "lora_only"], lora_bias),
+                task_type=self.config.lora.task_type,
+            )
+            self.model = get_peft_model(self.model, lora_config)
 
         logger.info("model_loaded_peft", trainable_params=self._count_trainable_params())
 
@@ -247,6 +262,7 @@ class ForgeTrainer:
             warmup_ratio=self.config.training.warmup_ratio,
             lr_scheduler_type=self.config.training.lr_scheduler_type,
             weight_decay=self.config.training.weight_decay,
+            max_grad_norm=self.config.training.max_grad_norm,
             seed=self.config.training.seed,
             max_steps=self.config.training.max_steps,
             report_to="wandb" if wandb_enabled else "none",
@@ -262,6 +278,23 @@ class ForgeTrainer:
             eval_dataset=eval_dataset,
             args=training_args,
             formatting_func=self._format_prompt,
+        )
+        trainer.add_callback(
+            EarlyStoppingOnPlateau(
+                patience=_EARLY_STOPPING_PATIENCE,
+                min_delta=_EARLY_STOPPING_MIN_DELTA,
+            )
+        )
+        trainer.add_callback(
+            NaNGuardCallback(
+                consecutive_limit=_NAN_GUARD_CONSECUTIVE_LIMIT,
+            )
+        )
+        logger.info(
+            "training_callbacks_enabled",
+            early_stopping_patience=_EARLY_STOPPING_PATIENCE,
+            early_stopping_min_delta=_EARLY_STOPPING_MIN_DELTA,
+            nan_guard_consecutive_limit=_NAN_GUARD_CONSECUTIVE_LIMIT,
         )
 
         logger.info("training_started", output_dir=str(output_dir))

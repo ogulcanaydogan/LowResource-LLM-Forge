@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch training status changes and trigger post-training pipeline
+After=forge-training-monitor.service
+Wants=forge-training-monitor.service
+
+[Path]
+PathModified=%h/projects/LowResource-LLM-Forge/artifacts/logs/training_monitor_status_a100.txt
+Unit=forge-posttrain.service
+
+[Install]
+WantedBy=default.target
