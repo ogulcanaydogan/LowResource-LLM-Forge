@@ -1,0 +1,16 @@
+[Unit]
+Description=LowResource-LLM-Forge Post-Training Pipeline Trigger
+After=forge-training-monitor.service forge-training.service
+Wants=forge-training-monitor.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/projects/LowResource-LLM-Forge
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-%h/.config/forge/training.env
+ExecStart=%h/projects/LowResource-LLM-Forge/scripts/run_posttrain_if_complete.sh
+StandardOutput=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/posttrain_v8.log
+StandardError=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/posttrain_v8.log
+
+[Install]
+WantedBy=default.target

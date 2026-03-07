@@ -1,0 +1,19 @@
+[Unit]
+Description=LowResource-LLM-Forge Training Progress Monitor
+After=forge-training.service
+Wants=forge-training.service
+PartOf=forge-training.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/LowResource-LLM-Forge
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-%h/.config/forge/training.env
+ExecStart=%h/projects/LowResource-LLM-Forge/scripts/monitor_a100_training.sh
+Restart=on-failure
+RestartSec=20
+StandardOutput=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_monitor_a100.log
+StandardError=append:%h/projects/LowResource-LLM-Forge/artifacts/logs/training_monitor_a100.log
+
+[Install]
+WantedBy=default.target

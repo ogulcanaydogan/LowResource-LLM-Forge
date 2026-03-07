@@ -1,0 +1,12 @@
+# Turkcell-7B A100 balanced-stable profile.
+# Goal: reduce NaN risk without excessive eval/checkpoint overhead.
+_base: "./turkcell_7b_a100_v5_recovery_low_lr.yaml"
+
+training:
+  learning_rate: 1.0e-5
+  max_grad_norm: 0.3
+  eval_steps: 500
+  save_steps: 250
+
+wandb:
+  run_name: "turkcell-7b-sft-v7-a100-bf16-balanced-stable"

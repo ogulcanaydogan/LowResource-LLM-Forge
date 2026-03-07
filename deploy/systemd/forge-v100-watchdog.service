@@ -1,0 +1,8 @@
+[Unit]
+Description=LowResource-LLM-Forge V100 Training Watchdog
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/projects/LowResource-LLM-Forge
+ExecStart=/usr/bin/env bash %h/projects/LowResource-LLM-Forge/scripts/watchdog_training.sh
