@@ -1,0 +1,9 @@
+# V100 fallback profile (single retry after NaN)
+_base: "turkcell_7b_v100_v2_stable.yaml"
+
+training:
+  learning_rate: 3.0e-5
+  max_grad_norm: 0.2
+
+wandb:
+  run_name: "turkcell-7b-sft-v100-v2b-fallback"

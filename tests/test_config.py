@@ -48,6 +48,9 @@ def test_training_params_v100_defaults() -> None:
     params = TrainingParams()
     assert params.fp16 is True
     assert params.bf16 is False  # V100 does NOT support bf16
+    assert params.early_stopping_enabled is True
+    assert params.early_stopping_patience == 5
+    assert params.early_stopping_min_delta == 0.001
 
 
 def test_load_yaml_config(tmp_path: Path) -> None:
@@ -85,7 +88,11 @@ def test_load_training_config(tmp_path: Path) -> None:
     config_file = tmp_path / "model.yaml"
     config_data = {
         "model": {"name": "test/model", "max_seq_length": 2048, "dtype": "float16"},
-        "training": {"num_epochs": 3, "learning_rate": 0.0002},
+        "training": {
+            "num_epochs": 3,
+            "learning_rate": 0.0002,
+            "early_stopping_enabled": False,
+        },
         "data": {
             "train_path": "data/train.jsonl",
             "eval_path": "data/eval.jsonl",
@@ -98,6 +105,7 @@ def test_load_training_config(tmp_path: Path) -> None:
     assert cfg.training.num_epochs == 3
     assert cfg.train_data_path == "data/train.jsonl"
     assert cfg.training.fp16 is True
+    assert cfg.training.early_stopping_enabled is False
 
 
 def test_load_data_config(tmp_path: Path) -> None:

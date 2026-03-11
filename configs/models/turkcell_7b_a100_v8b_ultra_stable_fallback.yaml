@@ -1,0 +1,10 @@
+# Turkcell-7B A100 ultra-stable fallback profile.
+# Use only when v8 fails the first 300-step stability gate.
+_base: "./turkcell_7b_a100_v8_stable_reset.yaml"
+
+training:
+  learning_rate: 3.0e-6
+  max_grad_norm: 0.2
+
+wandb:
+  run_name: "turkcell-7b-sft-v8b-a100-bf16-ultra-stable-fallback"

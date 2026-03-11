@@ -1,0 +1,13 @@
+# vLLM serving configuration for A100 merged v6 model
+
+model_path: "artifacts/merged/turkcell-7b-a100-v6-recovery-reset-opt"
+host: "0.0.0.0"
+port: 18020
+tensor_parallel_size: 1
+gpu_memory_utilization: 0.85
+max_model_len: 4096
+dtype: "float16"
+enable_prefix_caching: true
+trust_remote_code: false
+enforce_eager: false
+max_num_seqs: 64

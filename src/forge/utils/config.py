@@ -38,6 +38,7 @@ class TrainingParams(BaseModel):
     warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"
     weight_decay: float = 0.01
+    max_grad_norm: float = 1.0
     logging_steps: int = 10
     save_steps: int = 200
     save_total_limit: int = 3
@@ -45,6 +46,10 @@ class TrainingParams(BaseModel):
     fp16: bool = True   # always True for Volta arch
     bf16: bool = False  # NOT supported on V100
     max_steps: int = -1
+    early_stopping_enabled: bool = True
+    early_stopping_patience: int = 5
+    early_stopping_min_delta: float = 0.001
+    adapter_init_path: str | None = None
     seed: int = 42
 
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run V100 training watchdog every 30 seconds
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=forge-v100-watchdog.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

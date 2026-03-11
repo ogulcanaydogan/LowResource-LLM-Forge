@@ -1,0 +1,14 @@
+# Turkcell-7B A100 recovery profile with optimizer reset.
+# Use adapter warm-start from checkpoint-500 without resuming optimizer state.
+_base: "./turkcell_7b_a100_v5_recovery_low_lr.yaml"
+
+training:
+  learning_rate: 1.0e-5
+  warmup_ratio: 0.08
+  max_grad_norm: 0.3
+  eval_steps: 200
+  save_steps: 100
+  adapter_init_path: "artifacts/training/turkcell-7b-sft-v3-a100-bf16-stable/checkpoint-500"
+
+wandb:
+  run_name: "turkcell-7b-sft-v6-a100-bf16-recovery-reset-opt"
