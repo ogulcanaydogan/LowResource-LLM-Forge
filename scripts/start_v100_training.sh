@@ -16,7 +16,9 @@ FALLBACK_CONFIG="${FALLBACK_CONFIG:-configs/models/turkcell_7b_v100_v3b_fallback
 TARGET_STEPS="${TARGET_STEPS:-8601}"
 SAVE_STEPS="${SAVE_STEPS:-250}"
 ENABLE_RESUME="${ENABLE_RESUME:-0}"
+RESUME_FROM="${RESUME_FROM:-}"
 REQUIRE_WANDB="${REQUIRE_WANDB:-0}"
+LR_OVERRIDE="${LR_OVERRIDE:-}"
 RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 CONFIG_BASENAME="$(basename "$TRAIN_CONFIG")"
 CONFIG_SLUG="${CONFIG_BASENAME%.*}"
@@ -110,7 +112,13 @@ find_latest_checkpoint() {
 }
 
 resume_from=""
-if [[ "$ENABLE_RESUME" == "1" ]]; then
+if [[ -n "$RESUME_FROM" ]]; then
+    resume_from="$(abs_path "$RESUME_FROM")"
+    if [[ ! -d "$resume_from" ]]; then
+        echo "RESUME_FROM checkpoint directory not found: $resume_from" >&2
+        exit 1
+    fi
+elif [[ "$ENABLE_RESUME" == "1" ]]; then
     latest_checkpoint="$(find_latest_checkpoint || true)"
     if [[ -n "$latest_checkpoint" ]]; then
         resume_from="$latest_checkpoint"
@@ -120,6 +128,9 @@ fi
 cmd=("$UV_BIN" "run" "python" "scripts/run_training.py" "--config" "$TRAIN_CONFIG")
 if [[ -n "$resume_from" ]]; then
     cmd+=("--resume-from" "$resume_from")
+fi
+if [[ -n "$LR_OVERRIDE" ]]; then
+    cmd+=("--lr-override" "$LR_OVERRIDE")
 fi
 
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -133,6 +144,7 @@ ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "train_run_dir=$TRAIN_RUN_DIR"
     echo "train_log=$TRAIN_LOG"
     echo "resume_from=${resume_from:-none}"
+    echo "resume_override=${RESUME_FROM:-none}"
     echo "enable_resume=$ENABLE_RESUME"
     echo "require_wandb=$REQUIRE_WANDB"
     echo "command=${cmd[*]}"
@@ -150,6 +162,7 @@ ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "ENABLE_RESUME=$ENABLE_RESUME"
     echo "REQUIRE_WANDB=$REQUIRE_WANDB"
     echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+    echo "LR_OVERRIDE=${LR_OVERRIDE:-}"
 } >"$ACTIVE_RUN_FILE_ABS"
 
 echo "$$" >"$PID_FILE_ABS"

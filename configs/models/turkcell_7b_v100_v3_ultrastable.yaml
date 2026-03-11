@@ -15,13 +15,14 @@ training:
   warmup_ratio: 0.12
   lr_scheduler_type: "cosine"
   weight_decay: 0.01
-  max_grad_norm: 0.2
+  max_grad_norm: 0.3
   logging_steps: 10
-  eval_steps: 250
+  eval_steps: 500
   save_steps: 250
   save_total_limit: 30
   fp16: true
   bf16: false
+  early_stopping_enabled: false
 
 lora:
   r: 32

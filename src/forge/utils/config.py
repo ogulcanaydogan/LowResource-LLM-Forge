@@ -46,6 +46,9 @@ class TrainingParams(BaseModel):
     fp16: bool = True   # always True for Volta arch
     bf16: bool = False  # NOT supported on V100
     max_steps: int = -1
+    early_stopping_enabled: bool = True
+    early_stopping_patience: int = 5
+    early_stopping_min_delta: float = 0.001
     adapter_init_path: str | None = None
     seed: int = 42
 

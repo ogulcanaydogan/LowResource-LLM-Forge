@@ -15,8 +15,6 @@ from forge.utils.logging import get_logger
 logger = get_logger(__name__)
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
-_EARLY_STOPPING_PATIENCE = 5
-_EARLY_STOPPING_MIN_DELTA = 0.001
 _NAN_GUARD_CONSECUTIVE_LIMIT = 5
 
 
@@ -30,8 +28,9 @@ class ForgeTrainer:
     Falls back to standard PEFT if Unsloth is not available.
     """
 
-    def __init__(self, config: TrainingConfig) -> None:
+    def __init__(self, config: TrainingConfig, lr_override: float | None = None) -> None:
         self.config = config
+        self.lr_override = lr_override
         self.model: Any = None
         self.tokenizer: Any = None
         self._use_unsloth = True
@@ -198,6 +197,15 @@ class ForgeTrainer:
         run_name = self.config.wandb.run_name or "forge-run"
         output_dir = Path(self.config.output_dir) / run_name
 
+        effective_lr = self.config.training.learning_rate
+        if self.lr_override is not None:
+            logger.warning(
+                "lr_override_applied",
+                config_lr=self.config.training.learning_rate,
+                override_lr=self.lr_override,
+            )
+            effective_lr = self.lr_override
+
         wandb_disabled = _is_truthy(os.getenv("WANDB_DISABLED"))
         wandb_has_key = bool(os.getenv("WANDB_API_KEY"))
         wandb_enabled = self.config.wandb.enabled and not wandb_disabled and wandb_has_key
@@ -251,7 +259,7 @@ class ForgeTrainer:
             num_train_epochs=self.config.training.num_epochs,
             per_device_train_batch_size=self.config.training.per_device_train_batch_size,
             gradient_accumulation_steps=self.config.training.gradient_accumulation_steps,
-            learning_rate=self.config.training.learning_rate,
+            learning_rate=effective_lr,
             fp16=effective_fp16,
             bf16=effective_bf16,
             logging_steps=self.config.training.logging_steps,
@@ -279,21 +287,27 @@ class ForgeTrainer:
             args=training_args,
             formatting_func=self._format_prompt,
         )
-        trainer.add_callback(
-            EarlyStoppingOnPlateau(
-                patience=_EARLY_STOPPING_PATIENCE,
-                min_delta=_EARLY_STOPPING_MIN_DELTA,
+        if self.config.training.early_stopping_enabled:
+            trainer.add_callback(
+                EarlyStoppingOnPlateau(
+                    patience=self.config.training.early_stopping_patience,
+                    min_delta=self.config.training.early_stopping_min_delta,
+                )
             )
+        recovery_request_path = str(
+            Path(self.config.output_dir).parent / "logs" / "nan_recovery_request.env"
         )
         trainer.add_callback(
             NaNGuardCallback(
                 consecutive_limit=_NAN_GUARD_CONSECUTIVE_LIMIT,
+                recovery_request_path=recovery_request_path,
             )
         )
         logger.info(
             "training_callbacks_enabled",
-            early_stopping_patience=_EARLY_STOPPING_PATIENCE,
-            early_stopping_min_delta=_EARLY_STOPPING_MIN_DELTA,
+            early_stopping_enabled=self.config.training.early_stopping_enabled,
+            early_stopping_patience=self.config.training.early_stopping_patience,
+            early_stopping_min_delta=self.config.training.early_stopping_min_delta,
             nan_guard_consecutive_limit=_NAN_GUARD_CONSECUTIVE_LIMIT,
         )
 

@@ -76,7 +76,13 @@ if [[ -f "$LOG_FILE" ]]; then
     nan_hits=$((metric_nan_count + guard_nan_count))
 fi
 
-gpu_line="$(nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null | sed -n '1p' || true)"
+gpu_line="unknown"
+gpu_index="${CUDA_VISIBLE_DEVICES%%,*}"
+if [[ "$gpu_index" =~ ^[0-9]+$ ]]; then
+    gpu_line="$(nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null | sed -n "$((gpu_index + 1))p" || true)"
+else
+    gpu_line="$(nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null | sed -n '1p' || true)"
+fi
 if [[ -z "$gpu_line" ]]; then
     gpu_line="unknown"
 fi

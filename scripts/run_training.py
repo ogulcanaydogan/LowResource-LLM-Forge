@@ -25,12 +25,14 @@ from forge.utils.runtime_guard import enforce_remote_execution
     help="Optional checkpoint directory to resume from.",
 )
 @click.option("--verbose", is_flag=True, help="Enable verbose logging.")
+@click.option("--lr-override", default=None, type=float, help="Override learning rate (for recovery).")
 def main(
     config: str,
     dry_run: bool,
     max_steps: int,
     resume_from: str | None,
     verbose: bool,
+    lr_override: float | None,
 ) -> None:
     """Run QLoRA fine-tuning on a low-resource language model."""
     setup_logging(level="DEBUG" if verbose else "INFO")
@@ -49,10 +51,12 @@ def main(
         click.echo(f"Max steps override: {max_steps}")
     if resume_from:
         click.echo(f"Resume from checkpoint: {resume_from}")
+    if lr_override is not None:
+        click.echo(f"Learning rate override: {lr_override}")
 
     from forge.training.trainer import ForgeTrainer
 
-    trainer = ForgeTrainer(cfg)
+    trainer = ForgeTrainer(cfg, lr_override=lr_override)
 
     click.echo("\nLoading model and applying LoRA...")
     trainer.setup()
