@@ -25,7 +25,9 @@ from forge.utils.runtime_guard import enforce_remote_execution
     help="Optional checkpoint directory to resume from.",
 )
 @click.option("--verbose", is_flag=True, help="Enable verbose logging.")
-@click.option("--lr-override", default=None, type=float, help="Override learning rate (for recovery).")
+@click.option(
+    "--lr-override", default=None, type=float, help="Override learning rate (recovery).",
+)
 def main(
     config: str,
     dry_run: bool,

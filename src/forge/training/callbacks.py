@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import math
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -133,7 +132,7 @@ class NaNGuardCallback(TrainerCallback):
             f"LAST_CHECKPOINT={last_checkpoint}\n"
             f"NAN_FIELD={bad_field}\n"
             f"STEP={state.global_step}\n"
-            f"TIMESTAMP={datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+            f"TIMESTAMP={datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
         )
         logger.info(
             "nan_recovery_request_written",
@@ -205,4 +204,6 @@ class NaNGuardCallback(TrainerCallback):
         metrics: dict[str, object] | None = None,
         **kwargs: object,
     ) -> None:
-        self._handle_metrics(metrics=metrics, state=state, control=control, args=args, source="eval")
+        self._handle_metrics(
+            metrics=metrics, state=state, control=control, args=args, source="eval",
+        )
