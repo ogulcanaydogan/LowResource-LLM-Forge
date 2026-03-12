@@ -249,8 +249,12 @@ graph TD
 
 | Language | Config | Datasets | Status |
 |----------|--------|----------|--------|
-| **Turkish** | `configs/data/turkish.yaml` | Turkce-Instruct-Merged, turkish-text-data | Primary |
+| **Turkish** | `configs/data/turkish.yaml` | Turkce-Instruct-Merged, turkish-text-data | Primary — [models published](https://huggingface.co/collections/ogulcanaydogan/turkish-llm-family-69b303b4ef1c36caffca4e94) |
 | **Azerbaijani** | `configs/data/azerbaijani.yaml` | AzInstruct_merged | Configured |
+| **Kazakh** | Copy template, add Kazakh datasets | Kazakh Wikipedia, KazNERD | Template ready |
+| **Uzbek** | Copy template, add Uzbek datasets | UzbekNLP corpora | Template ready |
+| **Swahili** | Copy template, add Swahili datasets | HuggingFace sw datasets | Template ready |
+| **Kurdish** | Copy template, add Kurdish datasets | Kurdish corpora | Template ready |
 | **New language** | Copy `configs/data/template.yaml` | Bring your own datasets | Template ready |
 
 Adding a new language requires:
@@ -258,15 +262,29 @@ Adding a new language requires:
 2. Optionally, language marker words in `preprocessor.py` for detection filtering
 3. A model config inheriting from `configs/base.yaml`
 
+> **Example**: To add Kazakh support, copy `configs/data/template.yaml` to `configs/data/kazakh.yaml`, specify Kazakh HuggingFace datasets, and add Kazakh marker words to the language filter. The training pipeline handles everything else.
+
 ---
 
 ## Supported Models
 
-| Model | Base Architecture | V100 Compatible | Config |
-|-------|-------------------|-----------------|--------|
-| **Turkcell-LLM-7b-v1** | Mistral | Yes (primary target) | `configs/models/turkcell_7b.yaml` |
-| **wiroai-turkish-llm-9b** | Gemma | Yes (tight on 32GB) | `configs/models/wiroai_9b.yaml` |
-| **cere-llama-3-8b-tr** | Llama 3 | Yes | `configs/models/llama3_8b_tr.yaml` |
+| Model | Base Architecture | V100 Compatible | A100 Compatible | Config |
+|-------|-------------------|-----------------|-----------------|--------|
+| **Qwen2.5-1.5B-Instruct** | Qwen2 | Yes | Yes | `configs/models/qwen25_1.5b_instruct.yaml` |
+| **Qwen2.5-3B-Instruct** | Qwen2 | Yes | Yes | `configs/models/qwen25_3b_instruct.yaml` |
+| **Turkcell-LLM-7b-v1** | Mistral | Yes (primary target) | Yes | `configs/models/turkcell_7b.yaml` |
+| **wiroai-turkish-llm-9b** | Gemma | Yes (tight on 32GB) | Yes | `configs/models/wiroai_9b.yaml` |
+| **cere-llama-3-8b-tr** | Llama 3 | Yes | Yes | `configs/models/llama3_8b_tr.yaml` |
+| **Qwen2.5-14B-Instruct** | Qwen2 | No (needs >32GB) | Yes | `configs/models/qwen25_14b_instruct.yaml` |
+| **Qwen2.5-32B-Instruct** | Qwen2 | No (QLoRA 4-bit) | Yes (QLoRA) | `configs/models/qwen25_32b_instruct.yaml` |
+| **Qwen2.5-72B-Instruct** | Qwen2 | No | Yes (QLoRA 4-bit) | `configs/models/qwen25_72b_instruct.yaml` |
+
+### Models Trained with This Pipeline
+
+| Model | Parameters | Language | HuggingFace |
+|-------|-----------|----------|-------------|
+| [Turkish-LLM-14B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-14B-Instruct) | 14.7B | Turkish | Available |
+| [Turkish-LLM-7B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-7B-Instruct) | 7B | Turkish | Available |
 
 ---
 
