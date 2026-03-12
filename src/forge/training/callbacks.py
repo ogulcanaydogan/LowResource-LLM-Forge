@@ -93,10 +93,12 @@ class NaNGuardCallback(TrainerCallback):
         self,
         consecutive_limit: int = 5,
         watch_keys: tuple[str, ...] = ("loss", "grad_norm", "eval_loss"),
+        immediate_stop_keys: tuple[str, ...] = ("grad_norm",),
         recovery_request_path: str | None = None,
     ) -> None:
         self.consecutive_limit = consecutive_limit
         self.watch_keys = watch_keys
+        self.immediate_stop_keys = set(immediate_stop_keys)
         self.recovery_request_path = recovery_request_path
         self._consecutive_hits = 0
 
@@ -161,6 +163,23 @@ class NaNGuardCallback(TrainerCallback):
 
         if not bad_values:
             self._consecutive_hits = 0
+            return
+
+        # Immediate stop for critical fields (e.g. grad_norm NaN = weights corrupted)
+        immediate = {k for k in bad_values if k in self.immediate_stop_keys}
+        if immediate:
+            bad_field = next(iter(immediate))
+            logger.error(
+                "nan_guard_immediate_stop",
+                source=source,
+                step=state.global_step,
+                field=bad_field,
+                bad_metrics=bad_values,
+            )
+            self._write_recovery_request(
+                state=state, args=args, bad_field=bad_field
+            )
+            control.should_training_stop = True
             return
 
         self._consecutive_hits += 1

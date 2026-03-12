@@ -15,7 +15,7 @@ training:
   warmup_ratio: 0.12
   lr_scheduler_type: "cosine"
   weight_decay: 0.01
-  max_grad_norm: 0.3
+  max_grad_norm: 1.0
   logging_steps: 10
   eval_steps: 500
   save_steps: 250
