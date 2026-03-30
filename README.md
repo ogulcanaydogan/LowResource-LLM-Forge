@@ -29,6 +29,46 @@ The project targets NLP researchers, language preservation teams, and engineerin
 
 ---
 
+## Training Results
+
+Models trained with this pipeline are published on HuggingFace:
+
+| Model | Base | Method | HuggingFace |
+|-------|------|--------|-------------|
+| **Turkish-LLM-7B-Instruct** | Turkcell-LLM-7b-v1 | SFT | [ogulcanaydogan/Turkish-LLM-7B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-7B-Instruct) |
+| **Turkish-LLM-14B-Instruct** | Qwen2.5-14B | SFT + DPO | [ogulcanaydogan/Turkish-LLM-14B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-14B-Instruct) |
+| **Turkish-LLM-32B-Instruct** | Qwen2.5-32B | SFT | [ogulcanaydogan/Turkish-LLM-32B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-32B-Instruct) |
+
+GGUF quantized versions are also available for local inference with llama.cpp and Ollama. All published models were trained on A100 GPUs.
+
+### Benchmark Results (Turkish MMLU)
+
+| Model | MMLU_TR | XNLI_TR | XCOPA_TR | Notes |
+|-------|---------|---------|----------|-------|
+| Qwen2.5-14B (base) | 59.47% | 41.53% | 66.80% | Pre-training baseline |
+| + SFT v3 (144K samples) | 59.38% | 42.89% | 65.40% | Instruction tuning |
+| + DPO v3 | 59.42% | **43.33%** | 66.00% | Preference alignment |
+| + SFT v4 (refined data) | **59.77%** | 42.14% | 65.60% | Best MMLU_TR |
+
+**Honest assessment:** SFT and DPO fine-tuning preserved the base model's strong benchmark performance while adding Turkish instruction-following capability. Academic benchmarks like MMLU measure factual knowledge that is largely fixed during pretraining — they are not designed to capture the improvements that SFT actually provides: coherent multi-turn dialogue, proper Turkish character handling, instruction adherence, and reduced hallucination in Turkish responses.
+
+The real value of this pipeline is not in moving benchmark numbers — it is in turning a base model that outputs fragmented, inconsistent Turkish into one that can hold a structured conversation in Turkish.
+
+### V100 Engineering Challenges Solved
+
+The pipeline is designed to run on V100 GPUs (Volta architecture, compute capability 7.0), which present real engineering problems that don't exist on A100/H100. These were identified and fixed during V100 training runs:
+
+| Problem | Root Cause | Solution |
+|---------|-----------|----------|
+| **NaN loss during training** | BitsAndBytes 4-bit + AMP autocast produces NaN on pre-Ampere GPUs when `bnb_4bit_compute_dtype=float16` | Detect GPU compute capability at runtime; fall back to `float32` compute dtype on pre-Ampere hardware |
+| **No bf16 support** | V100 only supports fp16, but most QLoRA guides and configs assume bf16 | All configs enforce `fp16: true, bf16: false`; training scripts validate dtype before launch |
+| **Loss spikes and overflow** | fp16 dynamic range (max ~65504) causes gradient overflow without GradScaler | Added loss spike detection, consecutive-zero guard, and adaptive `max_grad_norm` tuning |
+| **OOM on 9B models** | 32GB V100 VRAM is tight for 9B QLoRA with batch size > 1 | Gradient checkpointing + per-model memory budgets in config; automatic batch size reduction |
+
+These fixes are baked into the pipeline — users targeting V100 hardware get stable training out of the box without needing to debug dtype and quantization issues themselves.
+
+---
+
 ## How It Works
 
 ```mermaid
@@ -262,11 +302,13 @@ Adding a new language requires:
 
 ## Supported Models
 
-| Model | Base Architecture | V100 Compatible | Config |
-|-------|-------------------|-----------------|--------|
-| **Turkcell-LLM-7b-v1** | Mistral | Yes (primary target) | `configs/models/turkcell_7b.yaml` |
-| **wiroai-turkish-llm-9b** | Gemma | Yes (tight on 32GB) | `configs/models/wiroai_9b.yaml` |
-| **cere-llama-3-8b-tr** | Llama 3 | Yes | `configs/models/llama3_8b_tr.yaml` |
+| Model | Base Architecture | V100 Compatible | Config | Trained Output |
+|-------|-------------------|-----------------|--------|----------------|
+| **Turkcell-LLM-7b-v1** | Mistral | Yes (primary target) | `configs/models/turkcell_7b.yaml` | [Turkish-LLM-7B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-7B-Instruct) |
+| **Qwen2.5-14B** | Qwen2.5 | Yes (A100 recommended) | `configs/models/qwen_14b.yaml` | [Turkish-LLM-14B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-14B-Instruct) |
+| **Qwen2.5-32B** | Qwen2.5 | No (A100 required) | `configs/models/qwen_32b.yaml` | [Turkish-LLM-32B-Instruct](https://huggingface.co/ogulcanaydogan/Turkish-LLM-32B-Instruct) |
+| **wiroai-turkish-llm-9b** | Gemma | Yes (tight on 32GB) | `configs/models/wiroai_9b.yaml` | — |
+| **cere-llama-3-8b-tr** | Llama 3 | Yes | `configs/models/llama3_8b_tr.yaml` | — |
 
 ---
 
