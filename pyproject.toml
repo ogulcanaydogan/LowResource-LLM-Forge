@@ -14,7 +14,7 @@ dependencies = [
     "structlog>=24.1.0",
     "datasets>=2.16.0",
     "huggingface-hub>=0.20.0",
-    "httpx>=0.25.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
