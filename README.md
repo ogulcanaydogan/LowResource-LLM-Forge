@@ -7,8 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Unsloth](https://img.shields.io/badge/Training-Unsloth%20QLoRA-FF6F00.svg)](https://github.com/unslothai/unsloth)
 [![vLLM](https://img.shields.io/badge/Serving-vLLM-7B68EE.svg)](https://github.com/vllm-project/vllm)
-[![Tests](https://img.shields.io/badge/Tests-78%20passed-2ECC71.svg)]()
-[![mypy](https://img.shields.io/badge/mypy-strict-blue.svg)]()
+[![mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
 
 ---
 
