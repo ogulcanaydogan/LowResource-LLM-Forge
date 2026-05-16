@@ -35,7 +35,7 @@ eval = [
 # These are environment-specific and mutually exclusive (different torch versions)
 # Install on target machines with: pip install unsloth[cu121] or pip install vllm
 # DO NOT install together — they pin different torch versions
-serve = ["fastapi>=0.115.0", "uvicorn>=0.30.0"]
+serve = ["fastapi>=0.135.3", "uvicorn>=0.30.0"]
 whisper = ["openai-whisper>=20231117", "ffmpeg-python>=0.2.0"]
 dev = [
     "pytest>=9.0.3",
