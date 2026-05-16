@@ -40,7 +40,7 @@ whisper = ["openai-whisper>=20231117", "ffmpeg-python>=0.2.0"]
 dev = [
     "pytest>=9.0.3",
     "pytest-cov>=5.0.0",
-    "mypy>=1.11.0",
+    "mypy>=1.20.1",
     "ruff>=0.6.0",
     "types-PyYAML>=6.0.0",
 ]
