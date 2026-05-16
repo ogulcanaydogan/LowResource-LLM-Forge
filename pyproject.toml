@@ -12,7 +12,7 @@ dependencies = [
     "click>=8.1.0",
     "rich>=13.0.0",
     "structlog>=24.1.0",
-    "datasets>=2.16.0",
+    "datasets>=4.8.4",
     "huggingface-hub>=0.20.0",
     "httpx>=0.25.0",
 ]
