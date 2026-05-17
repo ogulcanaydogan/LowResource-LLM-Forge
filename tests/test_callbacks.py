@@ -215,3 +215,97 @@ def test_nan_guard_detects_inf() -> None:
 
     cb.on_log(args, state, control, logs={"grad_norm": float("inf")})
     assert control.should_training_stop is True
+
+
+# --- detect_loss_spike tests ---
+
+from forge.training.trainer import detect_loss_spike
+
+
+def test_detect_loss_spike_first_step() -> None:
+    """First step initializes EMA, no spike."""
+    should_zero, ema = detect_loss_spike(5.5, None, 10.0)
+    assert should_zero is False
+    assert ema == 5.5
+
+
+def test_detect_loss_spike_normal() -> None:
+    """Normal loss updates EMA, no spike."""
+    should_zero, ema = detect_loss_spike(5.8, 5.5, 10.0)
+    assert should_zero is False
+    assert ema is not None
+    assert ema != 5.5  # EMA was updated
+
+
+def test_detect_loss_spike_triggers() -> None:
+    """Loss spike above threshold is detected."""
+    should_zero, ema = detect_loss_spike(142.3, 5.5, 10.0)
+    assert should_zero is True
+    assert ema == 5.5  # EMA unchanged on spike
+
+
+def test_detect_loss_spike_nan() -> None:
+    """NaN loss is detected as a spike."""
+    should_zero, ema = detect_loss_spike(float("nan"), 5.5, 10.0)
+    assert should_zero is True
+    assert ema == 5.5  # EMA unchanged
+
+
+# --- NaNGuardCallback immediate_stop_keys tests ---
+
+
+def test_nan_guard_immediate_stop_grad_norm() -> None:
+    """grad_norm NaN triggers immediate stop (1 hit, not consecutive_limit)."""
+    cb = NaNGuardCallback(consecutive_limit=5, immediate_stop_keys=("grad_norm",))
+    args = _make_args()
+    state = _make_state()
+    control = _make_control()
+
+    cb.on_log(args, state, control, logs={"grad_norm": float("nan")})
+    assert control.should_training_stop is True
+
+
+def test_nan_guard_loss_nan_still_consecutive() -> None:
+    """loss NaN still uses consecutive counter (not immediate)."""
+    cb = NaNGuardCallback(consecutive_limit=3, immediate_stop_keys=("grad_norm",))
+    args = _make_args()
+    state = _make_state()
+    control = _make_control()
+
+    cb.on_log(args, state, control, logs={"loss": float("nan")})
+    assert control.should_training_stop is False
+    assert cb._consecutive_hits == 1
+
+
+def test_nan_guard_immediate_stop_writes_recovery(tmp_path: Path) -> None:
+    """Immediate stop writes recovery request file."""
+    recovery_path = str(tmp_path / "recovery.env")
+    cb = NaNGuardCallback(
+        consecutive_limit=5,
+        immediate_stop_keys=("grad_norm",),
+        recovery_request_path=recovery_path,
+    )
+    ckpt_dir = tmp_path / "output" / "checkpoint-500"
+    ckpt_dir.mkdir(parents=True)
+    args = _make_args_with_output(str(tmp_path / "output"))
+    state = _make_state_with_history(global_step=500, lr=1e-5)
+    control = _make_control()
+
+    cb.on_log(args, state, control, logs={"grad_norm": float("nan")})
+    assert control.should_training_stop is True
+    assert Path(recovery_path).exists()
+
+    content = Path(recovery_path).read_text()
+    assert "NAN_FIELD=grad_norm" in content
+
+
+def test_nan_guard_no_immediate_keys_backward_compat() -> None:
+    """With empty immediate_stop_keys, grad_norm uses consecutive counter."""
+    cb = NaNGuardCallback(consecutive_limit=3, immediate_stop_keys=())
+    args = _make_args()
+    state = _make_state()
+    control = _make_control()
+
+    cb.on_log(args, state, control, logs={"grad_norm": float("nan")})
+    assert control.should_training_stop is False
+    assert cb._consecutive_hits == 1

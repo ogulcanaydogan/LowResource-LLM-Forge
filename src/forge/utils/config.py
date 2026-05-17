@@ -51,6 +51,7 @@ class TrainingParams(BaseModel):
     early_stopping_min_delta: float = 0.001
     adapter_init_path: str | None = None
     seed: int = 42
+    loss_spike_threshold: float = 10.0
 
 
 class ModelConfig(BaseModel):

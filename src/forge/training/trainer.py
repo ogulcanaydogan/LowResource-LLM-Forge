@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -21,6 +22,27 @@ _NAN_GUARD_CONSECUTIVE_LIMIT = 5
 def _is_truthy(value: str | None) -> bool:
     return bool(value and value.strip().lower() in _TRUE_VALUES)
 
+
+
+def detect_loss_spike(
+    loss_val: float,
+    ema: float | None,
+    threshold: float,
+    alpha: float = 0.05,
+) -> tuple[bool, float | None]:
+    """Check if a loss value is a spike relative to the running EMA.
+
+    Returns (should_zero, updated_ema). When should_zero is True the caller
+    should zero the loss to prevent NaN gradient corruption.
+    """
+    if not math.isfinite(loss_val):
+        return True, ema
+    if ema is None:
+        return False, loss_val
+    if loss_val > ema * threshold:
+        return True, ema
+    new_ema = alpha * loss_val + (1.0 - alpha) * ema
+    return False, new_ema
 
 class ForgeTrainer:
     """Orchestrate QLoRA fine-tuning with Unsloth on V100.
@@ -86,10 +108,21 @@ class ForgeTrainer:
             max_seq_length=self.config.model.max_seq_length,
         )
 
+        # Use fp32 compute on pre-Ampere GPUs to prevent fp16 overflow (no AMP GradScaler).
+        compute_dtype = torch.float16
+        try:
+            if torch.cuda.is_available():
+                major, _ = torch.cuda.get_device_capability(0)
+                if major < 8:
+                    compute_dtype = torch.float32
+                    logger.info("bnb_compute_dtype_fp32", reason="pre-Ampere GPU, fp32 prevents overflow without AMP")
+        except Exception:  # noqa: BLE001
+            pass
+
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=self.config.quantization.load_in_4bit,
             bnb_4bit_quant_type=self.config.quantization.bnb_4bit_quant_type,
-            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_compute_dtype=compute_dtype,
             bnb_4bit_use_double_quant=self.config.quantization.bnb_4bit_use_double_quant,
         )
 
@@ -189,6 +222,66 @@ class ForgeTrainer:
         """Run training. Returns path to saved adapter."""
         from trl import SFTConfig, SFTTrainer
 
+        class StableSFTTrainer(SFTTrainer):
+            """SFTTrainer with loss spike detection to prevent NaN gradient corruption."""
+
+            # After this many consecutive zeroed micro-batches, the model is
+            # considered irrecoverably corrupted and training should stop.
+            _MAX_CONSECUTIVE_ZEROS = 50
+
+            def __init__(self, *args: Any, loss_spike_threshold: float = 10.0, **kwargs: Any) -> None:
+                super().__init__(*args, **kwargs)
+                self._loss_spike_threshold = loss_spike_threshold
+                self._loss_ema: float | None = None
+                self._consecutive_zeros = 0
+
+            def compute_loss(
+                self,
+                model: Any,
+                inputs: dict[str, Any],
+                return_outputs: bool = False,
+                num_items_in_batch: Any = None,
+            ) -> Any:
+                import torch
+
+                result = super().compute_loss(
+                    model, inputs, return_outputs=return_outputs,
+                    num_items_in_batch=num_items_in_batch,
+                )
+                if return_outputs:
+                    loss, outputs = result
+                else:
+                    loss = result
+
+                should_zero, self._loss_ema = detect_loss_spike(
+                    loss.item(), self._loss_ema, self._loss_spike_threshold,
+                )
+                if should_zero:
+                    self._consecutive_zeros += 1
+                    logger.warning(
+                        "loss_spike_detected",
+                        loss=loss.item(),
+                        ema=self._loss_ema,
+                        step=self.state.global_step,
+                        consecutive_zeros=self._consecutive_zeros,
+                        action="zeroing_loss",
+                    )
+                    if self._consecutive_zeros >= self._MAX_CONSECUTIVE_ZEROS:
+                        logger.error(
+                            "loss_spike_model_corrupted",
+                            step=self.state.global_step,
+                            consecutive_zeros=self._consecutive_zeros,
+                            msg="Model irrecoverably corrupted, stopping training",
+                        )
+                        self.control.should_training_stop = True
+                    loss = torch.zeros(
+                        (), device=loss.device, dtype=loss.dtype, requires_grad=True,
+                    )
+                else:
+                    self._consecutive_zeros = 0
+
+                return (loss, outputs) if return_outputs else loss
+
         if self.model is None:
             raise RuntimeError("Call setup() before train()")
 
@@ -222,8 +315,8 @@ class ForgeTrainer:
         effective_fp16 = self.config.training.fp16
         effective_bf16 = self.config.training.bf16
         if not self._use_unsloth and (effective_fp16 or effective_bf16):
-            # PEFT fallback can hit AMP scaler dtype issues on some V100/torch stacks.
-            # Keep mixed precision enabled only on Ampere+ GPUs (compute capability >= 8.0).
+            # BitsAndBytes 4-bit + AMP autocast causes NaN on pre-Ampere GPUs.
+            # Disable AMP; fp32 compute dtype (set in _setup_peft) prevents overflow instead.
             allow_mixed_precision = False
             device_capability = "unknown"
             try:
@@ -239,7 +332,7 @@ class ForgeTrainer:
             if not allow_mixed_precision:
                 logger.warning(
                     "mixed_precision_disabled_peft_fallback",
-                    reason="prevent amp scaler dtype mismatch on non-Ampere fallback backend",
+                    reason="bnb 4-bit + AMP autocast causes NaN on pre-Ampere; using fp32 compute dtype instead",
                     device_capability=device_capability,
                     requested_fp16=effective_fp16,
                     requested_bf16=effective_bf16,
@@ -279,13 +372,14 @@ class ForgeTrainer:
             packing=False,
         )
 
-        trainer = SFTTrainer(
+        trainer = StableSFTTrainer(
             model=self.model,
             processing_class=self.tokenizer,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             args=training_args,
             formatting_func=self._format_prompt,
+            loss_spike_threshold=self.config.training.loss_spike_threshold,
         )
         if self.config.training.early_stopping_enabled:
             trainer.add_callback(
