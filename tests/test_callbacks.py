@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from forge.training.callbacks import EarlyStoppingOnPlateau, NaNGuardCallback
+from forge.training.trainer import detect_loss_spike
 
 
 def _make_state(global_step: int = 100) -> MagicMock:
@@ -218,8 +219,6 @@ def test_nan_guard_detects_inf() -> None:
 
 
 # --- detect_loss_spike tests ---
-
-from forge.training.trainer import detect_loss_spike
 
 
 def test_detect_loss_spike_first_step() -> None:
