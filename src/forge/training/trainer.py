@@ -115,7 +115,10 @@ class ForgeTrainer:
                 major, _ = torch.cuda.get_device_capability(0)
                 if major < 8:
                     compute_dtype = torch.float32
-                    logger.info("bnb_compute_dtype_fp32", reason="pre-Ampere GPU, fp32 prevents overflow without AMP")
+                    logger.info(
+                        "bnb_compute_dtype_fp32",
+                        reason="pre-Ampere GPU, fp32 prevents overflow without AMP",
+                    )
         except Exception:  # noqa: BLE001
             pass
 
@@ -229,7 +232,12 @@ class ForgeTrainer:
             # considered irrecoverably corrupted and training should stop.
             _MAX_CONSECUTIVE_ZEROS = 50
 
-            def __init__(self, *args: Any, loss_spike_threshold: float = 10.0, **kwargs: Any) -> None:
+            def __init__(
+                self,
+                *args: Any,
+                loss_spike_threshold: float = 10.0,
+                **kwargs: Any,
+            ) -> None:
                 super().__init__(*args, **kwargs)
                 self._loss_spike_threshold = loss_spike_threshold
                 self._loss_ema: float | None = None
@@ -332,7 +340,10 @@ class ForgeTrainer:
             if not allow_mixed_precision:
                 logger.warning(
                     "mixed_precision_disabled_peft_fallback",
-                    reason="bnb 4-bit + AMP autocast causes NaN on pre-Ampere; using fp32 compute dtype instead",
+                    reason=(
+                        "bnb 4-bit + AMP autocast causes NaN on pre-Ampere; "
+                        "using fp32 compute dtype instead"
+                    ),
                     device_capability=device_capability,
                     requested_fp16=effective_fp16,
                     requested_bf16=effective_bf16,
