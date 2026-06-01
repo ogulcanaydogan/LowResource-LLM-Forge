@@ -156,11 +156,7 @@ def _build_markdown(
         if current.p95_latency_ms is not None and baseline_p95 is not None
         else None
     )
-    delta_sr = (
-        current.success_rate_pct - baseline_sr
-        if baseline_sr is not None
-        else None
-    )
+    delta_sr = current.success_rate_pct - baseline_sr if baseline_sr is not None else None
 
     lines.append(
         "| Avg latency (ms) | "
@@ -284,9 +280,7 @@ def main(
         "baseline": baseline.__dict__ if baseline else None,
         "current_categories": {k: v.__dict__ for k, v in current_categories.items()},
         "baseline_categories": (
-            {k: v.__dict__ for k, v in baseline_categories.items()}
-            if baseline_categories
-            else None
+            {k: v.__dict__ for k, v in baseline_categories.items()} if baseline_categories else None
         ),
     }
     if baseline:

@@ -35,9 +35,7 @@ class PerplexityBenchmark:
 
         logger.info("loading_model_for_perplexity", model=self.model_path)
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            self.model_path, trust_remote_code=True
-        )
+        tokenizer = AutoTokenizer.from_pretrained(self.model_path, trust_remote_code=True)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_path,
             torch_dtype=torch.float16,  # fp16 only, V100 constraint

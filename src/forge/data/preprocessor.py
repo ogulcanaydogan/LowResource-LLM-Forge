@@ -22,7 +22,8 @@ _LANGUAGE_MARKERS: dict[str, set[str]] = {
 
 
 def detect_language_heuristic(
-    text: str, candidates: set[str] | None = None,
+    text: str,
+    candidates: set[str] | None = None,
 ) -> str | None:
     """Return best-matching Turkic language code, or None if unclear.
 
@@ -57,15 +58,20 @@ class DataPreprocessor:
     def process_file(self, input_path: Path, output_path: Path) -> dict[str, int]:
         """Process a JSONL file. Returns stats dict with counts."""
         stats = {
-            "total": 0, "kept": 0, "too_short": 0,
-            "too_long": 0, "duplicate": 0, "wrong_language": 0,
+            "total": 0,
+            "kept": 0,
+            "too_short": 0,
+            "too_long": 0,
+            "duplicate": 0,
+            "wrong_language": 0,
         }
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(input_path, encoding="utf-8") as fin, open(
-            output_path, "w", encoding="utf-8"
-        ) as fout:
+        with (
+            open(input_path, encoding="utf-8") as fin,
+            open(output_path, "w", encoding="utf-8") as fout,
+        ):
             for line in fin:
                 stats["total"] += 1
                 try:
@@ -130,8 +136,7 @@ class DataPreprocessor:
 
         # Remove control characters (keep newlines and tabs)
         text = "".join(
-            c for c in text
-            if c in ("\n", "\t") or not unicodedata.category(c).startswith("C")
+            c for c in text if c in ("\n", "\t") or not unicodedata.category(c).startswith("C")
         )
 
         return text
@@ -180,8 +185,7 @@ class DataPreprocessor:
         signature = []
         for seed in range(num_hashes):
             min_hash = min(
-                int(hashlib.md5(f"{seed}:{ng}".encode()).hexdigest()[:8], 16)
-                for ng in ngrams
+                int(hashlib.md5(f"{seed}:{ng}".encode()).hexdigest()[:8], 16) for ng in ngrams
             )
             signature.append(min_hash)
 
@@ -193,11 +197,7 @@ class DataPreprocessor:
             if len(seen_parts) != num_hashes:
                 continue
             matches = sum(
-                1
-                for a, b in zip(
-                    signature, (int(x) for x in seen_parts), strict=False
-                )
-                if a == b
+                1 for a, b in zip(signature, (int(x) for x in seen_parts), strict=False) if a == b
             )
             similarity = matches / num_hashes
             if similarity >= self.config.dedup_threshold:

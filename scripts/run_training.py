@@ -26,7 +26,10 @@ from forge.utils.runtime_guard import enforce_remote_execution
 )
 @click.option("--verbose", is_flag=True, help="Enable verbose logging.")
 @click.option(
-    "--lr-override", default=None, type=float, help="Override learning rate (recovery).",
+    "--lr-override",
+    default=None,
+    type=float,
+    help="Override learning rate (recovery).",
 )
 def main(
     config: str,

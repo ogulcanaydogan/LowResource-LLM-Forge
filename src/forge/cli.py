@@ -242,12 +242,8 @@ def serve(config: str) -> None:
 @main.command()
 @click.option("--base-url", required=True, help="vLLM base URL.")
 @click.option("--api-key", default=None, help="API key for the endpoint.")
-@click.option(
-    "--num-requests", default=50, help="Number of requests for benchmark."
-)
-@click.option(
-    "--concurrency", default=5, help="Concurrent request count."
-)
+@click.option("--num-requests", default=50, help="Number of requests for benchmark.")
+@click.option("--concurrency", default=5, help="Concurrent request count.")
 def benchmark(
     base_url: str,
     api_key: str | None,

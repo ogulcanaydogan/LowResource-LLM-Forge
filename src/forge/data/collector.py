@@ -71,9 +71,7 @@ class DataCollector:
         logger.info("records_written", count=count, path=str(output_path))
         return output_path
 
-    def _normalize_record(
-        self, record: dict[str, Any], fmt: str
-    ) -> dict[str, Any] | None:
+    def _normalize_record(self, record: dict[str, Any], fmt: str) -> dict[str, Any] | None:
         """Convert any supported format to unified alpaca-style dict.
 
         Output format: {"instruction": str, "input": str, "output": str}

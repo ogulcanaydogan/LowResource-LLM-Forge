@@ -54,9 +54,7 @@ class TurkishMMLUBenchmark:
         output = {
             "overall_accuracy": accuracy,
             "task": self.TASK_NAME,
-            "raw_results": {
-                k: v for k, v in task_results.items() if isinstance(v, (int, float))
-            },
+            "raw_results": {k: v for k, v in task_results.items() if isinstance(v, (int, float))},
         }
 
         logger.info("turkish_mmlu_complete", accuracy=accuracy)

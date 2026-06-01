@@ -23,7 +23,9 @@ def _clear_runtime_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(key, raising=False)
 
 
-def test_default_context_blocks_local_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_context_blocks_local_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _clear_runtime_env(monkeypatch)
     assert is_remote_execution_context() is False
     assert should_block_local_execution() is True
@@ -45,9 +47,10 @@ def test_ssh_context_allows_execution(monkeypatch: pytest.MonkeyPatch) -> None:
     assert should_block_local_execution() is False
 
 
-def test_explicit_remote_context_allows_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_explicit_remote_context_allows_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _clear_runtime_env(monkeypatch)
     monkeypatch.setenv("FORGE_EXECUTION_CONTEXT", "remote")
     assert is_remote_execution_context() is True
     enforce_remote_execution("serve")
-

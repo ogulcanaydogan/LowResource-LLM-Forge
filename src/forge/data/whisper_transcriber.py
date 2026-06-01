@@ -37,8 +37,7 @@ class WhisperTranscriber:
     ) -> None:
         if model_size not in VALID_MODEL_SIZES:
             raise ValueError(
-                f"Invalid model_size '{model_size}'. "
-                f"Choose from: {', '.join(VALID_MODEL_SIZES)}"
+                f"Invalid model_size '{model_size}'. Choose from: {', '.join(VALID_MODEL_SIZES)}"
             )
         self.model_size = model_size
         self.language = language
@@ -86,8 +85,7 @@ class WhisperTranscriber:
         avg_logprob = 0.0
         if segments:
             avg_logprob = sum(
-                s.get("avg_log_prob", s.get("avg_logprob", 0.0))
-                for s in segments
+                s.get("avg_log_prob", s.get("avg_logprob", 0.0)) for s in segments
             ) / len(segments)
 
         return {
@@ -107,10 +105,7 @@ class WhisperTranscriber:
 
         Returns stats dict: total, kept, filtered.
         """
-        audio_files = sorted(
-            f for f in audio_dir.iterdir()
-            if f.suffix.lower() in extensions
-        )
+        audio_files = sorted(f for f in audio_dir.iterdir() if f.suffix.lower() in extensions)
 
         if not audio_files:
             logger.warning("no_audio_files", dir=str(audio_dir))

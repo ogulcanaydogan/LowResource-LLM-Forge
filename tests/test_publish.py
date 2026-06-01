@@ -21,7 +21,10 @@ def test_model_card_basic(tmp_path: Path) -> None:
     card = generate_model_card(
         hub_repo="user/my-model",
         model_dir=tmp_path,
-        merge_info={"base_model": "org/base-7b", "merge_method": "peft_merge_and_unload"},
+        merge_info={
+            "base_model": "org/base-7b",
+            "merge_method": "peft_merge_and_unload",
+        },
         training_config=None,
         eval_results=None,
         language="tr",
@@ -78,8 +81,18 @@ def test_model_card_with_eval_results(tmp_path: Path) -> None:
     """Model card includes evaluation results table."""
     eval_results = {
         "benchmarks": [
-            {"name": "perplexity", "score": 12.5, "passed": True, "duration_seconds": 30.0},
-            {"name": "generation", "score": 3.8, "passed": True, "duration_seconds": 60.0},
+            {
+                "name": "perplexity",
+                "score": 12.5,
+                "passed": True,
+                "duration_seconds": 30.0,
+            },
+            {
+                "name": "generation",
+                "score": 3.8,
+                "passed": True,
+                "duration_seconds": 60.0,
+            },
         ],
         "summary": {"total": 2, "passed": 2, "failed": 0},
     }

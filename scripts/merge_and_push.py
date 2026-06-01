@@ -28,7 +28,12 @@ from forge.utils.runtime_guard import enforce_remote_execution
 @click.option("--hub-repo", default=None, help="HF Hub repository (e.g., user/model-name).")
 @click.option("--verbose", is_flag=True, help="Enable verbose logging.")
 def main(
-    base_model: str, adapter: str, output: str, push: bool, hub_repo: str | None, verbose: bool
+    base_model: str,
+    adapter: str,
+    output: str,
+    push: bool,
+    hub_repo: str | None,
+    verbose: bool,
 ) -> None:
     """Merge LoRA adapters into base model for deployment."""
     setup_logging(level="DEBUG" if verbose else "INFO")

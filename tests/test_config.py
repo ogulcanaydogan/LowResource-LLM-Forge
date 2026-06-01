@@ -63,18 +63,26 @@ def test_load_yaml_config(tmp_path: Path) -> None:
 
 def test_load_yaml_config_with_base(tmp_path: Path) -> None:
     base_file = tmp_path / "base.yaml"
-    base_file.write_text(yaml.dump({
-        "seed": 42,
-        "training": {"fp16": True, "bf16": False, "learning_rate": 0.001},
-        "lora": {"r": 32, "alpha": 64},
-    }))
+    base_file.write_text(
+        yaml.dump(
+            {
+                "seed": 42,
+                "training": {"fp16": True, "bf16": False, "learning_rate": 0.001},
+                "lora": {"r": 32, "alpha": 64},
+            }
+        )
+    )
 
     child_file = tmp_path / "child.yaml"
-    child_file.write_text(yaml.dump({
-        "_base": "base.yaml",
-        "training": {"learning_rate": 0.0002},
-        "model": {"name": "test/model"},
-    }))
+    child_file.write_text(
+        yaml.dump(
+            {
+                "_base": "base.yaml",
+                "training": {"learning_rate": 0.0002},
+                "model": {"name": "test/model"},
+            }
+        )
+    )
 
     result = load_yaml_config(child_file)
     assert result["seed"] == 42

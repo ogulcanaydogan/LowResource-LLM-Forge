@@ -39,7 +39,9 @@ def test_patch_tokenizer_config_for_vllm_rewrites_bad_class(tmp_path: Path) -> N
     assert data["legacy"] is False
 
 
-def test_patch_tokenizer_config_for_vllm_noop_for_compatible_class(tmp_path: Path) -> None:
+def test_patch_tokenizer_config_for_vllm_noop_for_compatible_class(
+    tmp_path: Path,
+) -> None:
     config_path = tmp_path / "tokenizer_config.json"
     _write_json(config_path, {"tokenizer_class": "LlamaTokenizer"})
 

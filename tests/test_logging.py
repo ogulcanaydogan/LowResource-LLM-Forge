@@ -15,4 +15,3 @@ def test_setup_logging_json_mode() -> None:
     setup_logging(level="INFO", json_output=True)
     logger = get_logger("tests.logging.json")
     logger.info("json_log_emitted", check="ok")
-

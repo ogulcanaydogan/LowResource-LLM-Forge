@@ -12,10 +12,12 @@ from forge.utils.logging import get_logger
 try:
     from transformers import TrainerCallback
 except Exception:  # pragma: no cover - fallback for non-training environments
+
     class TrainerCallback:  # type: ignore[no-redef]
         """Fallback base class when transformers is unavailable."""
 
         pass
+
 
 logger = get_logger(__name__)
 
@@ -102,9 +104,7 @@ class NaNGuardCallback(TrainerCallback):
         self.recovery_request_path = recovery_request_path
         self._consecutive_hits = 0
 
-    def _write_recovery_request(
-        self, *, state: Any, args: Any, bad_field: str
-    ) -> None:
+    def _write_recovery_request(self, *, state: Any, args: Any, bad_field: str) -> None:
         """Write a recovery request file for the watchdog to pick up."""
         if not self.recovery_request_path:
             return
@@ -176,9 +176,7 @@ class NaNGuardCallback(TrainerCallback):
                 field=bad_field,
                 bad_metrics=bad_values,
             )
-            self._write_recovery_request(
-                state=state, args=args, bad_field=bad_field
-            )
+            self._write_recovery_request(state=state, args=args, bad_field=bad_field)
             control.should_training_stop = True
             return
 
@@ -194,9 +192,7 @@ class NaNGuardCallback(TrainerCallback):
 
         if self._consecutive_hits >= self.consecutive_limit:
             bad_field = next(iter(bad_values))
-            self._write_recovery_request(
-                state=state, args=args, bad_field=bad_field
-            )
+            self._write_recovery_request(state=state, args=args, bad_field=bad_field)
             logger.error(
                 "nan_guard_stopping_training",
                 source=source,
@@ -224,5 +220,9 @@ class NaNGuardCallback(TrainerCallback):
         **kwargs: object,
     ) -> None:
         self._handle_metrics(
-            metrics=metrics, state=state, control=control, args=args, source="eval",
+            metrics=metrics,
+            state=state,
+            control=control,
+            args=args,
+            source="eval",
         )

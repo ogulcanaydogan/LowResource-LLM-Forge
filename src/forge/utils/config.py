@@ -10,13 +10,18 @@ from pydantic import BaseModel, Field
 
 
 class LoRAConfig(BaseModel):
-    r: int = 32        # rank 32 is sweet spot for 7B, 16 enough for smaller
+    r: int = 32  # rank 32 is sweet spot for 7B, 16 enough for smaller
     alpha: int = 64
     dropout: float = 0.05
     target_modules: list[str] = Field(
         default_factory=lambda: [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ]
     )
     bias: str = "none"
@@ -43,7 +48,7 @@ class TrainingParams(BaseModel):
     save_steps: int = 200
     save_total_limit: int = 3
     eval_steps: int = 100
-    fp16: bool = True   # always True for Volta arch
+    fp16: bool = True  # always True for Volta arch
     bf16: bool = False  # NOT supported on V100
     max_steps: int = -1
     early_stopping_enabled: bool = True

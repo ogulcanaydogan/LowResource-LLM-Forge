@@ -23,7 +23,6 @@ def _is_truthy(value: str | None) -> bool:
     return bool(value and value.strip().lower() in _TRUE_VALUES)
 
 
-
 def detect_loss_spike(
     loss_val: float,
     ema: float | None,
@@ -43,6 +42,7 @@ def detect_loss_spike(
         return True, ema
     new_ema = alpha * loss_val + (1.0 - alpha) * ema
     return False, new_ema
+
 
 class ForgeTrainer:
     """Orchestrate QLoRA fine-tuning with Unsloth on V100.
@@ -99,7 +99,12 @@ class ForgeTrainer:
     def _setup_peft(self) -> None:
         """Load model via standard PEFT (fallback when Unsloth unavailable)."""
         import torch
-        from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+        from peft import (
+            LoraConfig,
+            PeftModel,
+            get_peft_model,
+            prepare_model_for_kbit_training,
+        )
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
         logger.info(
@@ -185,12 +190,8 @@ class ForgeTrainer:
 
     def _load_datasets(self) -> tuple[Any, Any]:
         """Load train and eval datasets from JSONL files."""
-        train_dataset = load_dataset(
-            "json", data_files=self.config.train_data_path, split="train"
-        )
-        eval_dataset = load_dataset(
-            "json", data_files=self.config.eval_data_path, split="train"
-        )
+        train_dataset = load_dataset("json", data_files=self.config.train_data_path, split="train")
+        eval_dataset = load_dataset("json", data_files=self.config.eval_data_path, split="train")
         logger.info(
             "datasets_loaded",
             train_size=len(train_dataset),
@@ -214,10 +215,7 @@ class ForgeTrainer:
                 f"### Response:\n{output}"
             )
         else:
-            prompt = (
-                f"### Instruction:\n{instruction}\n\n"
-                f"### Response:\n{output}"
-            )
+            prompt = f"### Instruction:\n{instruction}\n\n### Response:\n{output}"
 
         return prompt
 
@@ -253,7 +251,9 @@ class ForgeTrainer:
                 import torch
 
                 result = super().compute_loss(
-                    model, inputs, return_outputs=return_outputs,
+                    model,
+                    inputs,
+                    return_outputs=return_outputs,
                     num_items_in_batch=num_items_in_batch,
                 )
                 if return_outputs:
@@ -262,7 +262,9 @@ class ForgeTrainer:
                     loss = result
 
                 should_zero, self._loss_ema = detect_loss_spike(
-                    loss.item(), self._loss_ema, self._loss_spike_threshold,
+                    loss.item(),
+                    self._loss_ema,
+                    self._loss_spike_threshold,
                 )
                 if should_zero:
                     self._consecutive_zeros += 1
@@ -283,7 +285,10 @@ class ForgeTrainer:
                         )
                         self.control.should_training_stop = True
                     loss = torch.zeros(
-                        (), device=loss.device, dtype=loss.dtype, requires_grad=True,
+                        (),
+                        device=loss.device,
+                        dtype=loss.dtype,
+                        requires_grad=True,
                     )
                 else:
                     self._consecutive_zeros = 0

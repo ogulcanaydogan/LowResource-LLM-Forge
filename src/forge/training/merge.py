@@ -57,9 +57,7 @@ class LoRAMerger:
         self.adapter_path = Path(adapter_path)
         self.output_path = Path(output_path)
 
-    def merge(
-        self, push_to_hub: bool = False, hub_repo: str | None = None
-    ) -> Path:
+    def merge(self, push_to_hub: bool = False, hub_repo: str | None = None) -> Path:
         """Merge LoRA adapters into base model. Returns output path."""
         from peft import PeftModel
         from transformers import AutoModelForCausalLM

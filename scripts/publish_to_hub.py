@@ -102,15 +102,17 @@ def generate_model_card(
     ]
 
     # Model details
-    lines.extend([
-        "## Model Details",
-        "",
-        f"- **Base model:** [{base_model}](https://huggingface.co/{base_model})",
-        "- **Fine-tuning method:** QLoRA (4-bit quantization + LoRA adapters)",
-        f"- **Merge method:** {merge_info.get('merge_method', 'peft_merge_and_unload')}",
-        f"- **Published:** {timestamp}",
-        "",
-    ])
+    lines.extend(
+        [
+            "## Model Details",
+            "",
+            f"- **Base model:** [{base_model}](https://huggingface.co/{base_model})",
+            "- **Fine-tuning method:** QLoRA (4-bit quantization + LoRA adapters)",
+            f"- **Merge method:** {merge_info.get('merge_method', 'peft_merge_and_unload')}",
+            f"- **Published:** {timestamp}",
+            "",
+        ]
+    )
 
     # Training configuration
     if training_config:
@@ -119,42 +121,48 @@ def generate_model_card(
         train_cfg = training_config.get("training", {})
         quant_cfg = training_config.get("quantization", {})
 
-        lines.extend([
-            "## Training Configuration",
-            "",
-            "| Parameter | Value |",
-            "|-----------|-------|",
-            f"| Max sequence length | {model_cfg.get('max_seq_length', 'N/A')} |",
-            f"| LoRA rank (r) | {lora_cfg.get('r', 'N/A')} |",
-            f"| LoRA alpha | {lora_cfg.get('alpha', 'N/A')} |",
-            f"| LoRA dropout | {lora_cfg.get('dropout', 'N/A')} |",
-            f"| Learning rate | {train_cfg.get('learning_rate', 'N/A')} |",
-            f"| Epochs | {train_cfg.get('num_epochs', 'N/A')} |",
-            f"| Batch size | {train_cfg.get('per_device_train_batch_size', 'N/A')} |",
-            f"| Grad accumulation | {train_cfg.get('gradient_accumulation_steps', 'N/A')} |",
-            f"| Scheduler | {train_cfg.get('lr_scheduler_type', 'N/A')} |",
-            f"| Precision | {_detect_precision(train_cfg)} |",
-            f"| Quantization | {'NF4 4-bit' if quant_cfg.get('load_in_4bit') else 'none'} |",
-            "",
-        ])
+        lines.extend(
+            [
+                "## Training Configuration",
+                "",
+                "| Parameter | Value |",
+                "|-----------|-------|",
+                f"| Max sequence length | {model_cfg.get('max_seq_length', 'N/A')} |",
+                f"| LoRA rank (r) | {lora_cfg.get('r', 'N/A')} |",
+                f"| LoRA alpha | {lora_cfg.get('alpha', 'N/A')} |",
+                f"| LoRA dropout | {lora_cfg.get('dropout', 'N/A')} |",
+                f"| Learning rate | {train_cfg.get('learning_rate', 'N/A')} |",
+                f"| Epochs | {train_cfg.get('num_epochs', 'N/A')} |",
+                f"| Batch size | {train_cfg.get('per_device_train_batch_size', 'N/A')} |",
+                f"| Grad accumulation | {train_cfg.get('gradient_accumulation_steps', 'N/A')} |",
+                f"| Scheduler | {train_cfg.get('lr_scheduler_type', 'N/A')} |",
+                f"| Precision | {_detect_precision(train_cfg)} |",
+                f"| Quantization | {'NF4 4-bit' if quant_cfg.get('load_in_4bit') else 'none'} |",
+                "",
+            ]
+        )
 
         target_modules = lora_cfg.get("target_modules", [])
         if target_modules:
-            lines.extend([
-                f"**LoRA target modules:** `{', '.join(target_modules)}`",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"**LoRA target modules:** `{', '.join(target_modules)}`",
+                    "",
+                ]
+            )
 
     # Evaluation results
     if eval_results:
         benchmarks = eval_results.get("benchmarks", [])
         if benchmarks:
-            lines.extend([
-                "## Evaluation Results",
-                "",
-                "| Benchmark | Score | Status |",
-                "|-----------|-------|--------|",
-            ])
+            lines.extend(
+                [
+                    "## Evaluation Results",
+                    "",
+                    "| Benchmark | Score | Status |",
+                    "|-----------|-------|--------|",
+                ]
+            )
             for bench in benchmarks:
                 status = "PASS" if bench.get("passed") else "FAIL"
                 score = bench.get("score", 0)
@@ -164,48 +172,56 @@ def generate_model_card(
             summary = eval_results.get("summary", {})
             total = summary.get("total", 0)
             passed = summary.get("passed", 0)
-            lines.extend([
-                f"**Overall: {passed}/{total} benchmarks passed**",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"**Overall: {passed}/{total} benchmarks passed**",
+                    "",
+                ]
+            )
 
     # Usage
-    lines.extend([
-        "## Usage",
-        "",
-        "```python",
-        "from transformers import AutoModelForCausalLM, AutoTokenizer",
-        "",
-        f'model = AutoModelForCausalLM.from_pretrained("{hub_repo}")',
-        f'tokenizer = AutoTokenizer.from_pretrained("{hub_repo}")',
-        "",
-        "prompt = \"### Instruction:\\nBilgi ver.\\n\\n### Response:\\n\"",
-        "inputs = tokenizer(prompt, return_tensors=\"pt\").to(model.device)",
-        "outputs = model.generate(**inputs, max_new_tokens=256)",
-        "print(tokenizer.decode(outputs[0], skip_special_tokens=True))",
-        "```",
-        "",
-    ])
+    lines.extend(
+        [
+            "## Usage",
+            "",
+            "```python",
+            "from transformers import AutoModelForCausalLM, AutoTokenizer",
+            "",
+            f'model = AutoModelForCausalLM.from_pretrained("{hub_repo}")',
+            f'tokenizer = AutoTokenizer.from_pretrained("{hub_repo}")',
+            "",
+            'prompt = "### Instruction:\\nBilgi ver.\\n\\n### Response:\\n"',
+            'inputs = tokenizer(prompt, return_tensors="pt").to(model.device)',
+            "outputs = model.generate(**inputs, max_new_tokens=256)",
+            "print(tokenizer.decode(outputs[0], skip_special_tokens=True))",
+            "```",
+            "",
+        ]
+    )
 
     # vLLM serving
-    lines.extend([
-        "### vLLM Serving",
-        "",
-        "```bash",
-        f"python -m vllm.entrypoints.openai.api_server --model {hub_repo}",
-        "```",
-        "",
-    ])
+    lines.extend(
+        [
+            "### vLLM Serving",
+            "",
+            "```bash",
+            f"python -m vllm.entrypoints.openai.api_server --model {hub_repo}",
+            "```",
+            "",
+        ]
+    )
 
     # Framework
-    lines.extend([
-        "## Framework",
-        "",
-        "Built with [LowResource-LLM-Forge]"
-        "(https://github.com/ogulcanaydogan/LowResource-LLM-Forge) — "
-        "a sovereign LLM fine-tuning pipeline for low-resource languages.",
-        "",
-    ])
+    lines.extend(
+        [
+            "## Framework",
+            "",
+            "Built with [LowResource-LLM-Forge]"
+            "(https://github.com/ogulcanaydogan/LowResource-LLM-Forge) — "
+            "a sovereign LLM fine-tuning pipeline for low-resource languages.",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 

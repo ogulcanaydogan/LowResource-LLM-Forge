@@ -61,8 +61,7 @@ def test_build_sft_dataset_shuffles(tmp_path: Path) -> None:
 
     input_path = tmp_path / "input.jsonl"
     records = [
-        {"instruction": f"Instruction {i}", "input": "", "output": f"Output {i}"}
-        for i in range(50)
+        {"instruction": f"Instruction {i}", "input": "", "output": f"Output {i}"} for i in range(50)
     ]
     _write_jsonl(input_path, records)
 

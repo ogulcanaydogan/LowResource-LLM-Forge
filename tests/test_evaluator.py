@@ -45,6 +45,7 @@ def test_report_generator_json(tmp_path: Path) -> None:
 
     assert path.exists()
     import json
+
     with open(path) as f:
         data = json.load(f)
     assert data["summary"]["total"] == 2
@@ -55,8 +56,11 @@ def test_report_generator_json(tmp_path: Path) -> None:
 def test_report_generator_markdown(tmp_path: Path) -> None:
     results = [
         BenchmarkResult(
-            name="bench1", score=0.8, passed=True,
-            details={"note": "good"}, duration_seconds=5.0,
+            name="bench1",
+            score=0.8,
+            passed=True,
+            details={"note": "good"},
+            duration_seconds=5.0,
         ),
     ]
     reporter = EvalReportGenerator(results, tmp_path)

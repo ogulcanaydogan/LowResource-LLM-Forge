@@ -74,7 +74,11 @@ def test_process_file_deduplicates(preprocessor: DataPreprocessor, tmp_path: Pat
     records = [
         dup_record,
         dup_record,
-        {"instruction": "Different instruction here", "input": "", "output": "Response two"},
+        {
+            "instruction": "Different instruction here",
+            "input": "",
+            "output": "Response two",
+        },
     ]
     _write_jsonl(input_path, records)
 

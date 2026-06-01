@@ -27,9 +27,7 @@ def test_script_help_runs_without_optional_deps(script_path: str) -> None:
     env = os.environ.copy()
     src_path = str(REPO_ROOT / "src")
     existing_pythonpath = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = (
-        f"{src_path}:{existing_pythonpath}" if existing_pythonpath else src_path
-    )
+    env["PYTHONPATH"] = f"{src_path}:{existing_pythonpath}" if existing_pythonpath else src_path
 
     result = subprocess.run(
         [sys.executable, script_path, "--help"],
@@ -42,4 +40,3 @@ def test_script_help_runs_without_optional_deps(script_path: str) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Usage:" in result.stdout
-

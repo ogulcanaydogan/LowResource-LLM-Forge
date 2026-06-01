@@ -27,7 +27,11 @@ def test_normalize_alpaca_turkish_columns() -> None:
 
 def test_normalize_alpaca_chat_triplet() -> None:
     collector = _collector()
-    record = {"system": "Sistem", "user": "Kullanıcı sorusu", "assistant": "Asistan cevabı"}
+    record = {
+        "system": "Sistem",
+        "user": "Kullanıcı sorusu",
+        "assistant": "Asistan cevabı",
+    }
     out = collector._normalize_record(record, "alpaca")
     assert out == {
         "instruction": "Kullanıcı sorusu",
@@ -46,4 +50,3 @@ def test_normalize_sharegpt_messages() -> None:
     }
     out = collector._normalize_record(record, "sharegpt")
     assert out == {"instruction": "Merhaba", "input": "", "output": "Selam!"}
-

@@ -44,4 +44,3 @@ def enforce_remote_execution(operation: str) -> None:
         "This command is remote-first and only allowed via SSH/CI by default. "
         "Use FORGE_ALLOW_LOCAL=1 to override intentionally."
     )
-
