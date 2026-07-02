@@ -21,7 +21,7 @@ dependencies = [
 # GPU training deps — install on training machines only
 train = [
     "torch>=2.1.0",
-    "transformers>=4.36.0",
+    "transformers>=5.3.0",
     "peft>=0.18.1",
     "bitsandbytes>=0.41.0",
     "trl>=0.7.0",
@@ -30,7 +30,7 @@ train = [
 ]
 eval = [
     "torch>=2.1.0",
-    "transformers>=4.36.0",
+    "transformers>=5.3.0",
 ]
 # These are environment-specific and mutually exclusive (different torch versions)
 # Install on target machines with: pip install unsloth[cu121] or pip install vllm
